@@ -3,28 +3,43 @@ FROM node:18-alpine AS base
 # Enable Corepack for Yarn
 RUN corepack enable && corepack prepare yarn@4.0.2 --activate
 
-# Build stage
-FROM base AS builder
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy workspace files
 COPY package.json yarn.lock .yarnrc.yml ./
 COPY nx.json ./
+COPY tsconfig.base.json ./
+# Copy all workspace package.json files (required for workspace resolution)
 COPY apps/api/package.json ./apps/api/
 COPY apps/api/tsconfig.json ./apps/api/
 COPY apps/api/project.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
 COPY libs/shared/package.json ./libs/shared/
 COPY libs/shared/tsconfig.json ./libs/shared/
 COPY libs/shared/project.json ./libs/shared/
-COPY tsconfig.base.json ./
 
 # Install dependencies (including dev dependencies for build)
-WORKDIR /app
-RUN yarn install --frozen-lockfile
+RUN yarn install --immutable
 
-# Copy source code
-COPY apps/api/src ./apps/api/src
-COPY libs/shared/src ./libs/shared/src
+# Build stage
+FROM base AS builder
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/.yarn ./.yarn
+
+# Copy workspace configuration
+COPY package.json yarn.lock .yarnrc.yml ./
+COPY nx.json ./
+COPY tsconfig.base.json ./
+
+# Copy application files
+COPY apps/api ./apps/api
+COPY libs/shared ./libs/shared
 
 # Build shared library first
 RUN echo "Building shared library..." && \
