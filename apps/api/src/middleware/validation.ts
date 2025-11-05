@@ -37,20 +37,13 @@ function createValidationMiddleware<T extends BaseDto>(
       if (error instanceof ValidationFailedError) {
         // Handle validation errors
         const validationError = error as ValidationFailedError;
-        res.status(400).json({
-          success: false,
-          error: validationError.message,
-          details: validationError.errors,
-        });
+        res.sendError(validationError.message, 400, validationError.errors);
         return;
       }
       
       // Handle unexpected errors
       console.error(`Validation error in ${source} middleware:`, error);
-      res.status(500).json({
-        success: false,
-        error: 'Internal validation error',
-      });
+      res.sendError('Internal validation error', 500);
     }
   };
 }
@@ -63,7 +56,11 @@ function createValidationMiddleware<T extends BaseDto>(
 export function validateBody<T extends BaseDto & IBodyDto>(
   dtoClass: IValidatableConstructor<T>
 ) {
-  return createValidationMiddleware(dtoClass, 'body');
+  const middleware = createValidationMiddleware(dtoClass, 'body');
+  // Store DTO reference for Swagger generation
+  (middleware as unknown as Record<string, unknown>).dtoClass = dtoClass;
+  (middleware as unknown as Record<string, unknown>).source = 'body';
+  return middleware;
 }
 
 /**
@@ -74,7 +71,11 @@ export function validateBody<T extends BaseDto & IBodyDto>(
 export function validateParams<T extends BaseDto & IParamDto>(
   dtoClass: IValidatableConstructor<T>
 ) {
-  return createValidationMiddleware(dtoClass, 'params');
+  const middleware = createValidationMiddleware(dtoClass, 'params');
+  // Store DTO reference for Swagger generation
+  (middleware as unknown as Record<string, unknown>).dtoClass = dtoClass;
+  (middleware as unknown as Record<string, unknown>).source = 'params';
+  return middleware;
 }
 
 /**
@@ -85,7 +86,11 @@ export function validateParams<T extends BaseDto & IParamDto>(
 export function validateQuery<T extends BaseDto>(
   dtoClass: IValidatableConstructor<T>
 ) {
-  return createValidationMiddleware(dtoClass, 'query');
+  const middleware = createValidationMiddleware(dtoClass, 'query');
+  // Store DTO reference for Swagger generation
+  (middleware as unknown as Record<string, unknown>).dtoClass = dtoClass;
+  (middleware as unknown as Record<string, unknown>).source = 'query';
+  return middleware;
 }
 
 /**

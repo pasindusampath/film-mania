@@ -24,10 +24,7 @@ export const authenticate = async (
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({
-        success: false,
-        error: 'No token provided',
-      });
+      res.sendError('No token provided', 401);
       return;
     }
 
@@ -40,10 +37,7 @@ export const authenticate = async (
       const user = await UserModel.findByPk(decoded.id);
 
       if (!user || !user.is_active) {
-        res.status(401).json({
-          success: false,
-          error: 'User not found or inactive',
-        });
+        res.sendError('User not found or inactive', 401);
         return;
       }
 
@@ -57,17 +51,11 @@ export const authenticate = async (
       next();
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
-        res.status(401).json({
-          success: false,
-          error: 'Token expired',
-        });
+        res.sendError('Token expired', 401);
         return;
       }
 
-      res.status(401).json({
-        success: false,
-        error: 'Invalid token',
-      });
+      res.sendError('Invalid token', 401);
     }
   } catch (error) {
     next(error);
@@ -124,18 +112,12 @@ export const requireAdmin = (
   next: NextFunction
 ): void => {
   if (!req.user) {
-    res.status(401).json({
-      success: false,
-      error: 'Authentication required',
-    });
+    res.sendError('Authentication required', 401);
     return;
   }
 
   if (!req.user.is_admin) {
-    res.status(403).json({
-      success: false,
-      error: 'Admin access required',
-    });
+    res.sendError('Admin access required', 403);
     return;
   }
 

@@ -21,7 +21,7 @@ declare global {
 export function normalizeResponse(req: Request, res: Response, next: NextFunction): void {
   /**
    * Send a successful response with standardized format
-   * @param data - The response data
+   * @param data - The response data (can be any type)
    * @param message - Optional success message
    * @param statusCode - HTTP status code (default: 200)
    */
@@ -36,8 +36,18 @@ export function normalizeResponse(req: Request, res: Response, next: NextFunctio
     }
 
     // Add count if data is an array
+    // Only add count if it's a direct array, not if data is an object containing an array
     if (Array.isArray(data)) {
       response.count = data.length;
+    }
+
+    // If data is an object with a 'data' property that's an array, preserve its count
+    // This handles cases like { data: [...], count: 10, page: 1 }
+    if (data && typeof data === 'object' && !Array.isArray(data) && data !== null) {
+      const dataObj = data as Record<string, unknown>;
+      if ('count' in dataObj && typeof dataObj.count === 'number') {
+        response.count = dataObj.count;
+      }
     }
 
     this.status(statusCode).json(response);

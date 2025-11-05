@@ -37,10 +37,7 @@ export class WebhookRouter extends BaseRouter {
     const webhookSecret = appConfig.stripe.webhookSecret;
 
     if (!sig || !webhookSecret) {
-      res.status(400).json({
-        success: false,
-        error: 'Missing stripe signature or webhook secret',
-      });
+      res.sendError('Missing stripe signature or webhook secret', 400);
       return;
     }
 
@@ -55,10 +52,7 @@ export class WebhookRouter extends BaseRouter {
       );
     } catch (error: unknown) {
       console.error('Webhook signature verification failed:', error);
-      res.status(400).json({
-        success: false,
-        error: 'Webhook signature verification failed',
-      });
+      res.sendError('Webhook signature verification failed', 400);
       return;
     }
 
@@ -89,10 +83,8 @@ export class WebhookRouter extends BaseRouter {
       res.json({ received: true });
     } catch (error: unknown) {
       console.error('Error handling webhook:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Webhook handling failed',
-      });
+      const errorMessage = error instanceof Error ? error.message : 'Webhook handling failed';
+      res.sendError(errorMessage, 500);
     }
   }
 

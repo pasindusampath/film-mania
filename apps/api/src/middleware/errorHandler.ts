@@ -30,33 +30,49 @@ export function errorHandler(
 ): void {
   console.error('Error caught by global handler:', err);
 
+  // Use sendError if available (from normalizeResponse middleware)
+  // Otherwise fall back to direct JSON response
+  const sendError = (res as { sendError?: (error: string, statusCode?: number, details?: unknown) => void }).sendError;
+
   // Handle AppError instances
   if (err instanceof AppError) {
-    res.status(err.statusCode).json({
-      success: false,
-      error: err.message,
-      details: err.details,
-    });
+    if (sendError) {
+      sendError.call(res, err.message, err.statusCode, err.details);
+    } else {
+      res.status(err.statusCode).json({
+        success: false,
+        error: err.message,
+        details: err.details,
+      });
+    }
     return;
   }
 
   // Handle Sequelize validation errors
   if (err.name === 'SequelizeValidationError' || err.name === 'SequelizeUniqueConstraintError') {
-    res.status(400).json({
-      success: false,
-      error: 'Database validation error',
-      details: err.message,
-    });
+    if (sendError) {
+      sendError.call(res, 'Database validation error', 400, err.message);
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Database validation error',
+        details: err.message,
+      });
+    }
     return;
   }
 
   // Handle Sequelize database connection errors
   if (err.name === 'SequelizeConnectionError' || err.name === 'SequelizeDatabaseError') {
-    res.status(503).json({
-      success: false,
-      error: 'Database connection error',
-      details: appConfig.nodeEnv === 'development' ? err.message : undefined,
-    });
+    if (sendError) {
+      sendError.call(res, 'Database connection error', 503, appConfig.nodeEnv === 'development' ? err.message : undefined);
+    } else {
+      res.status(503).json({
+        success: false,
+        error: 'Database connection error',
+        details: appConfig.nodeEnv === 'development' ? err.message : undefined,
+      });
+    }
     return;
   }
 
@@ -67,20 +83,28 @@ export function errorHandler(
       constraints: error.constraints,
     }));
 
-    res.status(400).json({
-      success: false,
-      error: 'Validation failed',
-      details: formattedErrors,
-    });
+    if (sendError) {
+      sendError.call(res, 'Validation failed', 400, formattedErrors);
+    } else {
+      res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: formattedErrors,
+      });
+    }
     return;
   }
 
   // Handle generic errors
-  res.status(500).json({
-    success: false,
-    error: 'Internal server error',
-    message: appConfig.nodeEnv === 'development' ? err.message : undefined,
-    stack: appConfig.nodeEnv === 'development' ? err.stack : undefined,
-  });
+  if (sendError) {
+    sendError.call(res, 'Internal server error', 500, appConfig.nodeEnv === 'development' ? { message: err.message, stack: err.stack } : undefined);
+  } else {
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: appConfig.nodeEnv === 'development' ? err.message : undefined,
+      stack: appConfig.nodeEnv === 'development' ? err.stack : undefined,
+    });
+  }
 }
 

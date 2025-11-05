@@ -85,12 +85,18 @@ class Server {
    */
   private setupErrorHandlers(): void {
     // 404 handler for unknown routes
+    // Use sendError if available (from normalizeResponse middleware)
     this.app.use((req: Request, res: Response) => {
-      res.status(404).json({
-        success: false,
-        error: 'Route not found',
-        path: req.path,
-      });
+      const sendError = (res as { sendError?: (error: string, statusCode?: number, details?: unknown) => void }).sendError;
+      if (sendError) {
+        sendError.call(res, 'Route not found', 404, { path: req.path });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: 'Route not found',
+          path: req.path,
+        });
+      }
     });
 
     // Global error handler (must be last)

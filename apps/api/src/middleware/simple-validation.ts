@@ -106,11 +106,7 @@ export const validateRequest = (schema: ValidationSchema) => {
     }
 
     if (Object.keys(errors).length > 0) {
-      res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        details: errors,
-      });
+      res.sendError('Validation failed', 400, errors);
       return;
     }
 

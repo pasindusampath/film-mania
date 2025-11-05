@@ -1,7 +1,6 @@
-import { Request, Response } from 'express';
 import { BaseRouter } from '../common/base_router';
-import { authenticate, AuthRequest } from '../../middleware';
-import authService from '../../services/auth.service';
+import { AuthController } from '../../controllers';
+import { authenticate } from '../../middleware';
 import { validateRequest } from '../../middleware/simple-validation';
 
 /**
@@ -9,6 +8,22 @@ import { validateRequest } from '../../middleware/simple-validation';
  * Handles user registration, login, and token refresh
  */
 export class AuthRouter extends BaseRouter {
+  private authController!: AuthController;
+
+  constructor() {
+    super();
+  }
+
+  /**
+   * Get or create the auth controller instance (lazy initialization)
+   */
+  private getAuthController(): AuthController {
+    if (!this.authController) {
+      this.authController = new AuthController();
+    }
+    return this.authController;
+  }
+
   /**
    * Get base path for auth routes
    */
@@ -20,6 +35,8 @@ export class AuthRouter extends BaseRouter {
    * Initialize routes (required by BaseRouter)
    */
   protected initializeRoutes(): void {
+    const controller = this.getAuthController();
+
     // Register new user
     this.router.post(
       '/register',
@@ -31,7 +48,7 @@ export class AuthRouter extends BaseRouter {
           last_name: { type: 'string', required: false },
         },
       }),
-      this.register.bind(this)
+      controller.register
     );
 
     // Login user
@@ -43,7 +60,7 @@ export class AuthRouter extends BaseRouter {
           password: { type: 'string', required: true },
         },
       }),
-      this.login.bind(this)
+      controller.login
     );
 
     // Refresh token
@@ -54,104 +71,11 @@ export class AuthRouter extends BaseRouter {
           refreshToken: { type: 'string', required: true },
         },
       }),
-      this.refresh.bind(this)
+      controller.refresh
     );
 
     // Get current user (protected)
-    this.router.get('/me', authenticate, this.getCurrentUser.bind(this));
-  }
-
-  /**
-   * Register a new user
-   */
-  private async register(req: Request, res: Response): Promise<void> {
-    try {
-      const { email, password, first_name, last_name } = req.body;
-
-      const user = await authService.register({
-        email,
-        password,
-        first_name,
-        last_name,
-      });
-
-      // Generate tokens
-      const tokens = authService.generateTokens(user.id, user.email);
-
-      res.status(201).json({
-        success: true,
-        data: {
-          user: {
-            id: user.id,
-            email: user.email,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            subscription_status: user.subscription_status,
-          },
-          ...tokens,
-        },
-      });
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Registration failed';
-      res.status(400).json({
-        success: false,
-        error: errorMessage,
-      });
-    }
-  }
-
-  /**
-   * Login user
-   */
-  private async login(req: Request, res: Response): Promise<void> {
-    try {
-      const { email, password } = req.body;
-
-      const { user, tokens } = await authService.login({ email, password });
-
-      res.json({
-        success: true,
-        data: {
-          user: {
-            id: user.id,
-            email: user.email,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            subscription_status: user.subscription_status,
-            is_admin: user.is_admin,
-          },
-          ...tokens,
-        },
-      });
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Login failed';
-      res.status(401).json({
-        success: false,
-        error: errorMessage,
-      });
-    }
-  }
-
-  /**
-   * Refresh access token
-   */
-  private async refresh(req: Request, res: Response): Promise<void> {
-    try {
-      const { refreshToken } = req.body;
-
-      const tokens = await authService.refreshToken(refreshToken);
-
-      res.json({
-        success: true,
-        data: tokens,
-      });
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Token refresh failed';
-      res.status(401).json({
-        success: false,
-        error: errorMessage,
-      });
-    }
+    this.router.get('/me', authenticate, controller.getCurrentUser);
   }
 
   /**
@@ -167,45 +91,11 @@ export class AuthRouter extends BaseRouter {
   }
 
   /**
-   * Get current authenticated user
+   * Get the auth controller instance
+   * Useful for testing or accessing controller methods directly
    */
-  private async getCurrentUser(req: Request, res: Response): Promise<void> {
-    try {
-      const authReq = req as AuthRequest;
-      const userId = authReq.user?.id;
-
-      if (!userId) {
-        res.status(401).json({
-          success: false,
-          error: 'User not authenticated',
-        });
-        return;
-      }
-
-      const { UserModel } = await import('../../models');
-      const user = await UserModel.findByPk(userId, {
-        attributes: ['id', 'email', 'first_name', 'last_name', 'subscription_status', 'is_admin', 'created_at'],
-      });
-
-      if (!user) {
-        res.status(404).json({
-          success: false,
-          error: 'User not found',
-        });
-        return;
-      }
-
-      res.json({
-        success: true,
-        data: { user },
-      });
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to get user';
-      res.status(500).json({
-        success: false,
-        error: errorMessage,
-      });
-    }
+  public getController(): AuthController {
+    return this.getAuthController();
   }
 }
 
