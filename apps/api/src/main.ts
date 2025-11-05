@@ -1,10 +1,57 @@
 import 'reflect-metadata'; // Required for decorators - MUST BE FIRST!
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+
+// Load environment variables FIRST, before any other imports that use process.env
+// This ensures .env file is loaded regardless of where the command is run from
+
+// Find project root - detect if we're in apps/api or at project root
+function findProjectRoot(): string {
+  const cwd = process.cwd();
+  
+  // If we're already in apps/api, go up two levels
+  if (cwd.endsWith('apps/api') || cwd.endsWith('apps\\api')) {
+    return path.resolve(cwd, '../..');
+  }
+  
+  // If we're at project root, use it
+  const envFileAtRoot = path.join(cwd, 'apps', 'api', '.env');
+  if (path.basename(cwd) === 'film-mania' || fs.existsSync(envFileAtRoot)) {
+    return cwd;
+  }
+  
+  // Try to find by looking for apps/api directory
+  let current = cwd;
+  while (current !== path.dirname(current)) {
+    const envFile = path.join(current, 'apps', 'api', '.env');
+    if (fs.existsSync(envFile)) {
+      return current;
+    }
+    current = path.dirname(current);
+  }
+  
+  // Fallback to current directory
+  return cwd;
+}
+
+const projectRoot = findProjectRoot();
+const envPath = path.resolve(projectRoot, 'apps/api', '.env');
+const envResult = dotenv.config({ path: envPath });
+
+if (envResult.error) {
+  console.warn(`⚠️  Could not load .env from ${envPath}`);
+  console.warn(`   Current working directory: ${process.cwd()}`);
+  console.warn(`   Project root detected: ${projectRoot}`);
+  console.warn(`   Attempted path: ${envPath}`);
+  console.warn(`   Using environment variables or defaults`);
+} else {
+  console.log(`✓ Loaded .env from: ${envPath}`);
+}
+
+// Now import modules that use process.env (after .env is loaded)
 import Server from './server';
 import { appConfig } from './config/app.config';
-
-// Load environment variables
-dotenv.config();
 
 // Get server instance
 const server = Server.getInstance();
