@@ -1,5 +1,4 @@
-import { Table, Column, Model, DataType, HasMany, HasOne, CreatedAt, UpdatedAt } from 'sequelize-typescript';
-import { DataTypes } from 'sequelize';
+import { Table, Column, Model, DataType, CreatedAt, UpdatedAt } from 'sequelize-typescript';
 
 @Table({
   tableName: 'users',
@@ -75,14 +74,10 @@ export default class UserModel extends Model {
   @UpdatedAt
   updated_at!: Date;
 
-  // Associations
-  @HasMany(() => require('./subscription.model').default, 'user_id')
-  subscriptions!: any[];
-
-  @HasMany(() => require('./payment.model').default, 'user_id')
-  payments!: any[];
-
-  @HasMany(() => require('./user_movie.model').default, 'user_id')
-  user_movies!: any[];
+  // Associations are defined in models/index.ts
+  // These are type hints for TypeScript
+  declare subscriptions?: unknown[];
+  declare payments?: unknown[];
+  declare user_movies?: unknown[];
 }
 

@@ -1,7 +1,9 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseRouter } from '../common/base_router';
 import stripeService from '../../services/stripe.service';
-import { SubscriptionModel, PaymentModel, UserModel } from '../../models';
+import { SubscriptionModel } from '../../models';
+import { appConfig } from '../../config/app.config';
+import Stripe from 'stripe';
 
 /**
  * Webhook Router
@@ -32,7 +34,7 @@ export class WebhookRouter extends BaseRouter {
    */
   private async handleStripeWebhook(req: Request, res: Response): Promise<void> {
     const sig = req.headers['stripe-signature'];
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = appConfig.stripe.webhookSecret;
 
     if (!sig || !webhookSecret) {
       res.status(400).json({
@@ -65,19 +67,19 @@ export class WebhookRouter extends BaseRouter {
       switch (event.type) {
         case 'customer.subscription.created':
         case 'customer.subscription.updated':
-          await this.handleSubscriptionUpdate(event.data.object as any);
+          await this.handleSubscriptionUpdate(event.data.object as Stripe.Subscription);
           break;
 
         case 'customer.subscription.deleted':
-          await this.handleSubscriptionDeleted(event.data.object as any);
+          await this.handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
           break;
 
         case 'payment_intent.succeeded':
-          await this.handlePaymentSucceeded(event.data.object as any);
+          await this.handlePaymentSucceeded(event.data.object as Stripe.PaymentIntent);
           break;
 
         case 'payment_intent.payment_failed':
-          await this.handlePaymentFailed(event.data.object as any);
+          await this.handlePaymentFailed(event.data.object as Stripe.PaymentIntent);
           break;
 
         default:
@@ -97,7 +99,7 @@ export class WebhookRouter extends BaseRouter {
   /**
    * Handle subscription update
    */
-  private async handleSubscriptionUpdate(stripeSubscription: any): Promise<void> {
+  private async handleSubscriptionUpdate(stripeSubscription: Stripe.Subscription): Promise<void> {
     const userId = stripeSubscription.metadata?.userId;
     if (!userId) {
       console.error('No userId in subscription metadata');
@@ -110,7 +112,7 @@ export class WebhookRouter extends BaseRouter {
   /**
    * Handle subscription deleted
    */
-  private async handleSubscriptionDeleted(stripeSubscription: any): Promise<void> {
+  private async handleSubscriptionDeleted(stripeSubscription: Stripe.Subscription): Promise<void> {
     const subscription = await SubscriptionModel.findOne({
       where: { stripe_subscription_id: stripeSubscription.id },
     });
@@ -126,7 +128,7 @@ export class WebhookRouter extends BaseRouter {
   /**
    * Handle payment succeeded
    */
-  private async handlePaymentSucceeded(paymentIntent: any): Promise<void> {
+  private async handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
     const userId = paymentIntent.metadata?.userId;
     if (!userId) {
       console.error('No userId in payment intent metadata');
@@ -149,7 +151,7 @@ export class WebhookRouter extends BaseRouter {
   /**
    * Handle payment failed
    */
-  private async handlePaymentFailed(paymentIntent: any): Promise<void> {
+  private async handlePaymentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
     const userId = paymentIntent.metadata?.userId;
     if (!userId) {
       return;

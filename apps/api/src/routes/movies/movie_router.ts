@@ -1,10 +1,10 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseRouter } from '../common/base_router';
-import { authenticate, optionalAuth, AuthRequest } from '../../middleware';
-import { validateRequest } from '../../middleware/simple-validation';
+import { optionalAuth } from '../../middleware';
 import movieService from '../../services/movie.service';
 import { MovieModel, MovieCategoryModel } from '../../models';
 import { MovieCategory } from '@nx-mono-repo-deployment-test/shared';
+import { Op } from 'sequelize';
 
 /**
  * Movie Router
@@ -45,7 +45,7 @@ export class MovieRouter extends BaseRouter {
     try {
       const { page = 1, language, content_type, limit = 20 } = req.query;
 
-      const where: any = {};
+      const where: Record<string, unknown> = {};
       if (language) where.language = language;
       if (content_type) where.content_type = content_type;
 
@@ -187,8 +187,8 @@ export class MovieRouter extends BaseRouter {
       const dbMovies = await MovieModel.findAll({
         where: {
           title: {
-            [require('sequelize').Op.iLike]: `%${query}%`,
-          } as any,
+            [Op.iLike]: `%${query}%`,
+          },
         },
         limit: 20,
         include: [
@@ -211,8 +211,8 @@ export class MovieRouter extends BaseRouter {
           const freshMovies = await MovieModel.findAll({
             where: {
               title: {
-                [require('sequelize').Op.iLike]: `%${query}%`,
-              } as any,
+                [Op.iLike]: `%${query}%`,
+              },
             },
             limit: 20,
             include: [

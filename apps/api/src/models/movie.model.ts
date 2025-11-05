@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, HasMany, CreatedAt, UpdatedAt } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, CreatedAt, UpdatedAt } from 'sequelize-typescript';
 
 @Table({
   tableName: 'movies',
@@ -81,7 +81,7 @@ export default class MovieModel extends Model {
     type: DataType.JSONB,
     defaultValue: [],
   })
-  streaming_links!: any[];
+  streaming_links!: unknown[];
 
   @Column({
     type: DataType.INTEGER,
@@ -113,11 +113,9 @@ export default class MovieModel extends Model {
   @UpdatedAt
   updated_at!: Date;
 
-  // Associations
-  @HasMany(() => require('./movie_category.model').default, 'movie_id')
-  categories!: any[];
-
-  @HasMany(() => require('./subtitle.model').default, 'movie_id')
-  subtitles!: any[];
+  // Associations are defined in models/index.ts
+  // These are type hints for TypeScript
+  declare categories?: unknown[];
+  declare subtitles?: unknown[];
 }
 

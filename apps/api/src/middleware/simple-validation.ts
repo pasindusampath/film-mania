@@ -7,7 +7,7 @@ interface ValidationRule {
   maxLength?: number;
   isEmail?: boolean;
   isNumeric?: boolean;
-  custom?: (value: any) => boolean;
+  custom?: (value: unknown) => boolean;
 }
 
 interface ValidationSchema {

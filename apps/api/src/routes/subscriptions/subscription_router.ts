@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { BaseRouter } from '../common/base_router';
 import { authenticate, AuthRequest, requireAdmin } from '../../middleware';
 import { validateRequest } from '../../middleware/simple-validation';
@@ -112,7 +112,7 @@ export class SubscriptionRouter extends BaseRouter {
     try {
       const authReq = req as AuthRequest;
       const userId = authReq.user?.id;
-      const { priceId, paymentMethodId } = req.body;
+      const { priceId } = req.body;
 
       if (!userId) {
         res.status(401).json({
@@ -133,7 +133,7 @@ export class SubscriptionRouter extends BaseRouter {
       }
 
       // Create or get Stripe customer
-      let customerId = user.email; // Simplified - in production, store customer ID
+      const customerId = user.email; // Simplified - in production, store customer ID
       // TODO: Store Stripe customer ID in user model
 
       // Create subscription

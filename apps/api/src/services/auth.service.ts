@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcrypt';
-import * as jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { UserModel } from '../models';
+import { appConfig } from '../config/app.config';
 
 export interface RegisterData {
   email: string;
@@ -25,17 +26,10 @@ export interface AuthTokens {
  * Handles user registration, login, and token generation
  */
 class AuthService {
-  private readonly JWT_SECRET: string;
-  private readonly JWT_REFRESH_SECRET: string;
-  private readonly ACCESS_TOKEN_EXPIRY: string;
-  private readonly REFRESH_TOKEN_EXPIRY: string;
   private readonly SALT_ROUNDS = 10;
 
   constructor() {
-    this.JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-    this.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key-change-in-production';
-    this.ACCESS_TOKEN_EXPIRY = process.env.JWT_EXPIRY || '24h';
-    this.REFRESH_TOKEN_EXPIRY = process.env.JWT_REFRESH_EXPIRY || '7d';
+    // Configuration loaded from centralized app.config
   }
 
   /**
@@ -108,16 +102,19 @@ class AuthService {
   generateTokens(userId: string, email: string): AuthTokens {
     const payload = { id: userId, email };
 
-    const accessToken = jwt.sign(payload, this.JWT_SECRET, {
-      expiresIn: this.ACCESS_TOKEN_EXPIRY,
-    });
+    const accessTokenOptions: SignOptions = {
+      expiresIn: appConfig.jwt.accessTokenExpiry,
+    };
 
-    const refreshToken = jwt.sign(payload, this.JWT_REFRESH_SECRET, {
-      expiresIn: this.REFRESH_TOKEN_EXPIRY,
-    });
+    const refreshTokenOptions: SignOptions = {
+      expiresIn: appConfig.jwt.refreshTokenExpiry,
+    };
+
+    const accessToken = jwt.sign(payload, appConfig.jwt.secret, accessTokenOptions);
+    const refreshToken = jwt.sign(payload, appConfig.jwt.refreshSecret, refreshTokenOptions);
 
     // Calculate expiry in seconds
-    const expiresIn = this.parseExpiry(this.ACCESS_TOKEN_EXPIRY);
+    const expiresIn = this.parseExpiry(appConfig.jwt.accessTokenExpiry);
 
     return {
       accessToken,
@@ -131,7 +128,7 @@ class AuthService {
    */
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
     try {
-      const decoded = jwt.verify(refreshToken, this.JWT_REFRESH_SECRET) as {
+      const decoded = jwt.verify(refreshToken, appConfig.jwt.refreshSecret) as {
         id: string;
         email: string;
       };
@@ -145,7 +142,7 @@ class AuthService {
 
       // Generate new tokens
       return this.generateTokens(user.id, user.email);
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof jwt.TokenExpiredError) {
         throw new Error('Refresh token expired');
       }

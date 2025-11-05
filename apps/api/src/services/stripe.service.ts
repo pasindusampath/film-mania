@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { SubscriptionModel, PaymentModel } from '../models';
+import { appConfig } from '../config/app.config';
 
 /**
  * Stripe Service
@@ -9,12 +10,11 @@ class StripeService {
   private stripe: Stripe;
 
   constructor() {
-    const secretKey = process.env.STRIPE_SECRET_KEY;
-    if (!secretKey) {
+    if (!appConfig.stripe.secretKey) {
       throw new Error('STRIPE_SECRET_KEY environment variable is required');
     }
-    this.stripe = new Stripe(secretKey, {
-      apiVersion: '2024-12-18.acacia',
+    this.stripe = new Stripe(appConfig.stripe.secretKey, {
+      apiVersion: appConfig.stripe.apiVersion as Stripe.LatestApiVersion,
     });
   }
 
