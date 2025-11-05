@@ -1,99 +1,102 @@
-# NX Monorepo with CI/CD for VPS Deployment
+# Film Mania 🎬
 
-A modern, production-ready monorepo setup using NX, featuring a Node.js/Express backend, Next.js frontend, Docker containerization, and automated CI/CD pipeline for VPS deployment.
+An open-source subscription-based movie streaming platform designed to serve a diverse audience with multi-language content support and AI-powered subtitle translation.
 
-## 🏗️ Project Structure
+## 🌟 Overview
+
+Film Mania is a modern, production-ready streaming platform that enables users to watch films from various languages including Tamil, Malayalam, Hindi, English, Korean, Japanese, and Anime. The platform features AI-powered English-to-Sinhala subtitle translation, making content accessible to a broader audience.
+
+### Key Features
+
+- 🎥 **Multi-Language Content**: Support for Tamil, Malayalam, Hindi, English, Korean, Japanese, and Anime
+- 🤖 **AI Subtitle Translation**: Automatic English-to-Sinhala subtitle conversion using AI models
+- 💳 **Subscription Management**: Flexible monthly/yearly subscription plans via Stripe
+- 🔐 **Secure Authentication**: JWT-based authentication with refresh tokens
+- 📊 **Admin Dashboard**: Admin tools for funding user subscriptions and managing API credits
+- 🎯 **Content Discovery**: Advanced search, filtering, and categorization
+- 🌐 **Self-Hosted**: Full Docker Compose setup for easy deployment
+- 📱 **Responsive Design**: Modern UI built with Next.js and React
+
+## 🏗️ Architecture
+
+### Tech Stack
+
+**Frontend:**
+- Next.js 14+ (App Router)
+- React 18+
+- TypeScript
+- Tailwind CSS (optional)
+
+**Backend:**
+- Node.js 18+
+- Express.js
+- TypeScript
+- PostgreSQL with Sequelize ORM
+- JWT Authentication
+- Stripe Integration
+
+**Infrastructure:**
+- Docker & Docker Compose
+- Nginx Reverse Proxy
+- PostgreSQL Database
+- NX Monorepo
+
+**External Services:**
+- Stripe (Payment Processing)
+- TMDB (Movie Metadata)
+- VidAPI/StreamAPI (Streaming Links)
+- AI Model (Subtitle Translation)
+
+## 📁 Project Structure
 
 ```
-nx-mono-repo-deployment-test/
+film-mania/
 ├── apps/
-│   ├── api/                    # Backend API (Node.js/Express)
+│   ├── api/                    # Backend API (Express/TypeScript)
 │   │   ├── src/
+│   │   │   ├── config/        # Configuration (app.config.ts, database.ts)
 │   │   │   ├── controllers/    # API controllers
-│   │   │   ├── routes/         # API routes
-│   │   │   └── main.js         # Entry point
-│   │   ├── Dockerfile
-│   │   └── package.json
+│   │   │   ├── middleware/    # Auth, validation, error handling
+│   │   │   ├── models/        # Sequelize database models
+│   │   │   ├── routes/        # API routes (auth, movies, subscriptions, etc.)
+│   │   │   ├── services/      # Business logic (auth, stripe, movie)
+│   │   │   └── main.ts        # Application entry point
+│   │   └── Dockerfile
 │   │
 │   └── web/                    # Frontend (Next.js/React)
 │       ├── src/
-│       │   ├── components/     # React components
-│       │   ├── pages/          # Next.js pages
-│       │   └── styles/         # CSS modules
-│       ├── Dockerfile
-│       └── package.json
+│       │   ├── app/           # Next.js App Router pages
+│       │   ├── components/    # React components
+│       │   └── lib/           # Utilities and API client
+│       └── Dockerfile
 │
 ├── libs/
-│   └── shared/                 # Shared utilities and types
+│   └── shared/                 # Shared TypeScript types and interfaces
 │       └── src/
+│           ├── interfaces/    # TypeScript interfaces (IMovie, etc.)
+│           ├── dtos/          # Data Transfer Objects
+│           └── enums/         # Enumerations
 │
-├── .github/
-│   └── workflows/              # CI/CD pipelines
-│       ├── ci.yml              # Continuous Integration
-│       ├── cd-dev.yml          # Dev deployment (auto)
-│       ├── cd-qa.yml           # QA deployment (auto)
-│       ├── cd-staging.yml      # Staging deployment (auto)
-│       ├── cd-prod.yml         # Production deployment (manual)
-│       └── pr-check.yml        # Pull Request checks
+├── database/
+│   └── schema.sql             # PostgreSQL database schema
 │
 ├── docker/
-│   └── nginx/                  # Nginx configuration
+│   └── nginx/                 # Nginx configuration
 │       └── nginx.conf
 │
-├── scripts/                    # Deployment scripts
-│   ├── deploy.sh               # Main deployment script
-│   ├── setup-vps.sh            # VPS initial setup
-│   ├── backup.sh               # Backup script
-│   ├── rollback.sh             # Rollback script
-│   ├── logs.sh                 # View logs
-│   └── status.sh               # Check service status
+├── docs/
+│   ├── requirements.md        # Detailed requirements document
+│   └── technical-feasibility.md # Technical architecture document
 │
-├── docker-compose.yml          # Docker Compose configuration
-├── nx.json                     # NX configuration
-└── package.json                # Root package.json
+├── scripts/                   # Deployment and utility scripts
+│   ├── deploy.sh
+│   ├── setup-vps.sh
+│   └── ...
+│
+├── docker-compose.yml        # Docker Compose configuration
+├── nx.json                   # NX configuration
+└── package.json              # Root package.json
 ```
-
-## ✨ Features
-
-- 🏗️ **Monorepo Architecture**: NX-powered monorepo for efficient code sharing
-- ⚡ **Modern Stack**: TypeScript + Node.js/Express backend + Next.js/React frontend
-- 💎 **Full TypeScript**: 100% TypeScript with strict type checking
-- 🐳 **Dockerized**: Containerized applications for consistent deployment
-- 🔄 **CI/CD**: Automated testing and deployment with GitHub Actions
-- 🚀 **VPS Ready**: Production-ready scripts for VPS deployment
-- 🔒 **Nginx Reverse Proxy**: Load balancing and SSL termination
-- 📊 **Health Checks**: Built-in health monitoring
-- 🔄 **Auto Deployment**: Push to main branch triggers deployment
-- 📦 **Shared Libraries**: Common utilities and types across apps
-
-## 🌍 Live Environments
-
-The application is deployed across multiple environments with automated CI/CD pipelines:
-
-### Development Environment
-- **API**: https://dev-api.pasindusampath.com
-- **Web**: https://dev-web.pasindusampath.com
-- **Status**: ✅ Auto-deploy on `develop`/`dev` branch
-- **Health Check**: https://dev-api.pasindusampath.com/health
-
-### QA Environment
-- **API**: https://qa-api.pasindusampath.com
-- **Web**: https://qa-web.pasindusampath.com
-- **Status**: ✅ Auto-deploy on `qa` branch
-- **Health Check**: https://qa-api.pasindusampath.com/health
-
-### Staging Environment
-- **API**: https://staging-api.pasindusampath.com
-- **Web**: https://staging-web.pasindusampath.com
-- **Status**: ✅ Auto-deploy on `staging` branch
-- **Health Check**: https://staging-api.pasindusampath.com/health
-
-### Production Environment
-- **API**: https://prod-api.pasindusampath.com
-- **Web**: https://prod-web.pasindusampath.com
-- **Status**: ⚠️ Manual deployment only (main branch)
-- **Health Check**: https://prod-api.pasindusampath.com/health
-
 
 ## 🚀 Quick Start
 
@@ -101,342 +104,224 @@ The application is deployed across multiple environments with automated CI/CD pi
 
 - Node.js 18.x or higher
 - Yarn 4.x (via Corepack)
-- Docker and Docker Compose (for deployment)
+- Docker and Docker Compose
+- PostgreSQL 14+ (or use Docker)
 - Git
 
-### Local Development
+### Local Development Setup
 
 1. **Clone the repository**
    ```bash
    git clone <your-repo-url>
-   cd nx-mono-repo-deployment-test
+   cd film-mania
    ```
 
-2. **Install dependencies**
+2. **Enable Corepack and install dependencies**
    ```bash
-   # Enable Corepack for Yarn
    corepack enable
-   
-   # Install all workspace dependencies
    yarn install
    ```
 
-3. **Start the API (in one terminal)**
+3. **Set up environment variables**
+   
+   Create `apps/api/.env`:
+   ```env
+   NODE_ENV=development
+   PORT=3000
+   
+   # Database
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=film_mania
+   DB_USERNAME=postgres
+   DB_PASSWORD=postgres
+   
+   # JWT
+   JWT_SECRET=your-secret-key-change-in-production
+   JWT_REFRESH_SECRET=your-refresh-secret-key-change-in-production
+   JWT_EXPIRY=24h
+   JWT_REFRESH_EXPIRY=7d
+   
+   # Stripe
+   STRIPE_SECRET_KEY=sk_test_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   
+   # TMDB
+   TMDB_API_KEY=your-tmdb-api-key
+   
+   # CORS
+   CORS_ORIGIN=http://localhost:3001,http://localhost:3000
+   ```
+
+   Create `apps/web/.env.local`:
+   ```env
+   NEXT_PUBLIC_API_URL=http://localhost:3000
+   ```
+
+4. **Set up the database**
+   ```bash
+   # Start PostgreSQL with Docker
+   docker-compose up -d postgres
+   
+   # Or use your existing PostgreSQL instance
+   # Then run the schema
+   psql -U postgres -d film_mania -f database/schema.sql
+   ```
+
+5. **Start the development servers**
+
+   In one terminal, start the API:
    ```bash
    yarn api:dev
    ```
    API will run on http://localhost:3000
 
-4. **Start the Web app (in another terminal)**
+   In another terminal, start the web app:
    ```bash
    yarn web:dev
    ```
    Web app will run on http://localhost:3001
 
-5. **Access the application**
+6. **Access the application**
    - Frontend: http://localhost:3001
    - API: http://localhost:3000
    - Health Check: http://localhost:3000/health
 
 ## 🐳 Docker Deployment
 
-### Local Docker Testing
+### Quick Start with Docker Compose
 
 ```bash
-# Build all images
-yarn docker:build
-
-# Start all services
-yarn docker:up
+# Build and start all services
+docker-compose up -d
 
 # View logs
-yarn docker:logs
+docker-compose logs -f
 
 # Stop all services
-yarn docker:down
+docker-compose down
 ```
 
-Access the application at http://localhost (through Nginx reverse proxy)
+The application will be available at:
+- API: http://localhost:3000
+- Web: http://localhost:3001
+- Nginx (if configured): http://localhost
 
-## 🌐 VPS Deployment
+## 📚 API Documentation
 
-### Initial VPS Setup
+### Authentication Endpoints
 
-1. **SSH into your VPS**
-   ```bash
-   ssh your-username@your-vps-ip
-   ```
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - Login user
+- `POST /api/auth/refresh` - Refresh access token
+- `GET /api/auth/me` - Get current user info
 
-2. **Run the setup script**
-   ```bash
-   curl -O https://raw.githubusercontent.com/your-repo/main/scripts/setup-vps.sh
-   chmod +x setup-vps.sh
-   ./setup-vps.sh
-   ```
+### Movie Endpoints
 
-3. **Clone your repository**
-   ```bash
-   cd /opt/nx-mono-repo
-   git clone <your-repo-url> .
-   ```
+- `GET /api/movies` - Get movies list (with filters)
+- `GET /api/movies/:id` - Get movie details
+- `GET /api/movies/categories/list` - Get available categories
+- `GET /api/movies/category/:category` - Get movies by category
+- `GET /api/movies/search/:query` - Search movies
 
-4. **Configure GitHub Secrets**
-   
-   Go to your GitHub repository → Settings → Secrets and add:
-   - `VPS_HOST`: Your VPS IP address or domain
-   - `VPS_USERNAME`: SSH username
-   - `VPS_SSH_KEY`: Your SSH private key
-   - `VPS_PORT`: SSH port (default: 22)
-   - `DOCKER_USERNAME`: (Optional) Docker Hub username
-   - `DOCKER_PASSWORD`: (Optional) Docker Hub password
+### Subscription Endpoints
 
-### Manual Deployment
+- `GET /api/subscriptions/current` - Get current subscription
+- `POST /api/subscriptions/create` - Create subscription
+- `POST /api/subscriptions/cancel` - Cancel subscription
 
-```bash
-cd /opt/nx-mono-repo
-./scripts/deploy.sh
-```
+### Admin Endpoints
 
-### Automated Deployment
-
-Every push to the `main` branch triggers automatic deployment via GitHub Actions.
-
-## 📜 Available Scripts
-
-### Root Level
-
-```bash
-npm run api:dev          # Start API in development mode
-npm run api:start        # Start API in production mode
-npm run web:dev          # Start web app in development mode
-npm run web:build        # Build web app for production
-npm run web:start        # Start web app in production mode
-npm run install:all      # Install all dependencies
-npm run docker:build     # Build Docker images
-npm run docker:up        # Start Docker containers
-npm run docker:down      # Stop Docker containers
-npm run docker:logs      # View Docker logs
-npm run deploy           # Deploy to VPS
-npm run status           # Check service status
-npm run logs             # View application logs
-```
-
-### Deployment Scripts
-
-```bash
-./scripts/deploy.sh      # Deploy application
-./scripts/setup-vps.sh   # Initial VPS setup
-./scripts/backup.sh      # Create backup
-./scripts/rollback.sh    # Rollback to previous version
-./scripts/logs.sh        # View logs (api, web, nginx, or all)
-./scripts/status.sh      # Check service status and health
-```
+- `POST /api/admin/fund-subscription` - Fund user subscription (3 months)
+- `GET /api/admin/api-credits` - Get API credits
+- `POST /api/admin/api-credits` - Add API credits
+- `GET /api/admin/funding/stats` - Get funding statistics
 
 ## 🔧 Configuration
 
 ### Environment Variables
 
-**API (apps/api/.env)**
-```env
-NODE_ENV=production
-PORT=3000
-```
+See `apps/api/env.example` for all available environment variables.
 
-**Web (apps/web/.env.local)**
-```env
-API_URL=http://localhost:3000
-```
+### Database Schema
 
-**Production (VPS)**
-Update `docker-compose.yml` with production environment variables.
+The database schema includes:
+- Users and authentication
+- Subscriptions and payments
+- Movies and categories
+- Subtitles
+- API credits and usage tracking
+- Admin funding records
 
-### Nginx Configuration
+See `database/schema.sql` for the complete schema.
 
-Edit `docker/nginx/nginx.conf` to:
-- Add SSL certificates
-- Configure custom domains
-- Adjust rate limiting
-- Add custom headers
+## 🎯 Features Roadmap
 
-### SSL/HTTPS Setup
+- [x] User authentication and authorization
+- [x] Subscription management with Stripe
+- [x] Movie catalog with multi-language support
+- [x] Admin dashboard for funding subscriptions
+- [x] API credit tracking
+- [ ] AI subtitle translation (English to Sinhala)
+- [ ] Video player with subtitle support
+- [ ] User watchlist and favorites
+- [ ] Movie recommendations
+- [ ] Advanced search filters
+- [ ] Mobile app (React Native)
+- [ ] Social features (reviews, ratings)
 
-1. Obtain SSL certificates (Let's Encrypt recommended)
-2. Place certificates in `docker/nginx/ssl/`
-3. Uncomment HTTPS server block in `nginx.conf`
-4. Update docker-compose.yml to mount SSL volumes
+## 🛡️ Security Features
 
-## 🔄 CI/CD Pipeline
-
-### Workflow Overview
-
-1. **CI (Continuous Integration)**
-   - Runs on every push and pull request
-   - Lints code
-   - Builds applications
-   - Runs tests
-
-2. **CD (Continuous Deployment)**
-   - Runs on push to `main` branch
-   - Builds Docker images
-   - Deploys to VPS
-   - Runs health checks
-
-3. **PR Checks**
-   - Validates code formatting
-   - Checks for linting errors
-   - Comments on PR with status
-
-### Customizing Workflows
-
-Edit files in `.github/workflows/` to customize:
-- Deployment triggers
-- Build steps
-- Test commands
-- Deployment targets
-
-## 📊 Monitoring & Maintenance
-
-### Health Checks
-
-```bash
-# Check all services
-./scripts/status.sh
-
-# Check API health
-curl http://your-vps-ip/health
-
-# Check web health
-curl http://your-vps-ip/
-```
-
-### Viewing Logs
-
-```bash
-# All services
-./scripts/logs.sh all
-
-# Specific service
-./scripts/logs.sh api
-./scripts/logs.sh web
-./scripts/logs.sh nginx
-```
-
-### Backups
-
-```bash
-# Create backup
-./scripts/backup.sh
-
-# Backups are stored in /opt/backups/nx-mono-repo/
-# Last 7 backups are retained automatically
-```
-
-### Rollback
-
-```bash
-./scripts/rollback.sh
-# Enter the commit hash to rollback to
-```
-
-## 🏗️ Architecture
-
-### Application Flow
-
-```
-Internet → Nginx (Port 80/443)
-           ├─→ /api/* → API Service (Port 3000)
-           ├─→ /health → API Health Check
-           └─→ /* → Web Service (Port 3001)
-```
-
-### Docker Services
-
-- **api**: Node.js/Express backend
-- **web**: Next.js frontend
-- **nginx**: Reverse proxy and load balancer
-
-## 🛡️ Security
-
-- ✅ Helmet.js for API security headers
-- ✅ CORS configured
-- ✅ Rate limiting via Nginx
-- ✅ Non-root Docker containers
+- ✅ JWT-based authentication with refresh tokens
+- ✅ Password hashing with bcrypt
+- ✅ Helmet.js for security headers
+- ✅ CORS configuration
+- ✅ Input validation and sanitization
+- ✅ Rate limiting (via Nginx)
+- ✅ SQL injection prevention (Sequelize ORM)
 - ✅ Environment variable management
-- ✅ UFW firewall configuration
-- 🔄 SSL/TLS ready (configure certificates)
 
 ## 🤝 Contributing
 
-1. Create a feature branch
-2. Make your changes
-3. Submit a pull request
-4. Wait for CI checks to pass
-5. Get approval and merge
+We welcome contributions! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Ensure all tests pass and linting is clean
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Development Guidelines
+
+- Follow TypeScript best practices
+- Write meaningful commit messages
+- Update documentation for new features
+- Add tests for new functionality
+- Ensure code passes ESLint checks
 
 ## 📝 License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🐛 Troubleshooting
+## 🙏 Acknowledgments
 
-### Port Already in Use
-
-```bash
-# Check which process is using the port
-sudo lsof -i :3000
-sudo lsof -i :3001
-
-# Kill the process
-kill -9 <PID>
-```
-
-### Docker Issues
-
-```bash
-# Remove all containers and start fresh
-docker-compose down -v
-docker system prune -a
-docker-compose up -d
-```
-
-### Deployment Failures
-
-```bash
-# Check logs
-./scripts/logs.sh all
-
-# Check service status
-./scripts/status.sh
-
-# Rollback to previous version
-./scripts/rollback.sh
-```
-
-## 📚 Additional Resources
-
-- [NX Documentation](https://nx.dev)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Express.js Documentation](https://expressjs.com)
-- [Docker Documentation](https://docs.docker.com)
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
-
-## 🎯 Roadmap
-
-- [ ] Add database support (PostgreSQL/MongoDB)
-- [ ] Implement authentication and authorization
-- [ ] Add comprehensive test suites
-- [ ] Set up monitoring (Prometheus/Grafana)
-- [ ] Add logging aggregation (ELK Stack)
-- [ ] Implement caching layer (Redis)
-- [ ] Add API documentation (Swagger/OpenAPI)
-- [ ] Set up automated backups
-- [ ] Implement blue-green deployment
+- TMDB for movie metadata API
+- Stripe for payment processing
+- The open-source community for amazing tools and libraries
 
 ## 📧 Support
 
-For issues, questions, or contributions, please open an issue on GitHub.
+For issues, questions, or contributions:
+- Open an issue on GitHub
+- Check the [documentation](docs/) folder for detailed information
+- Review the [requirements document](docs/requirements.md)
+
+## 🌍 Live Demo
+
+Coming soon! The application will be deployed and available for public access.
 
 ---
 
-**Built with ❤️ using NX Monorepo**
-
+**Built with ❤️ using NX Monorepo, TypeScript, and modern web technologies**
