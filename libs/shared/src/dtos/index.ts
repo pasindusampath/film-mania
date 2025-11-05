@@ -21,9 +21,17 @@
 export * from './common';
 export * from './params';
 export * from './item';
+export * from './auth/request';
+export * from './subscription/request';
+export * from './admin/request';
+export * from './admin/response';
 
 // Re-export commonly used types for convenience
 export { BaseDto, ValidationFailedError } from './common/base_dto';
 export { IdParamDto } from './params';
 export { CreateItemDto, UpdateItemDto, ItemResponseDto } from './item';
+export { RegisterDto, LoginDto, RefreshTokenDto } from './auth/request';
+export { CreateSubscriptionDto, CancelSubscriptionDto } from './subscription/request';
+export { FundSubscriptionDto, AddApiCreditsDto } from './admin/request';
+export { AdminFundingResponseDto, ApiCreditResponseDto, SubscriptionResponseDto } from './admin/response';
 

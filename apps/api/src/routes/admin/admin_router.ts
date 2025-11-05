@@ -1,7 +1,8 @@
 import { BaseRouter } from '../common/base_router';
 import { AdminController } from '../../controllers';
 import { authenticate, requireAdmin } from '../../middleware';
-import { validateRequest } from '../../middleware/simple-validation';
+import { ValidationMiddleware } from '../../middleware/validation';
+import { FundSubscriptionDto, AddApiCreditsDto } from '@nx-mono-repo-deployment-test/shared/src/dtos';
 
 /**
  * Admin Router
@@ -44,13 +45,7 @@ export class AdminRouter extends BaseRouter {
     // Fund user subscription
     this.router.post(
       '/fund-subscription',
-      validateRequest({
-        body: {
-          userId: { type: 'string', required: true },
-          months: { type: 'number', required: false },
-          amount: { type: 'number', required: false },
-        },
-      }),
+      ValidationMiddleware.body(FundSubscriptionDto),
       controller.fundUserSubscription
     );
 
@@ -60,14 +55,7 @@ export class AdminRouter extends BaseRouter {
     // Add API credits
     this.router.post(
       '/api-credits',
-      validateRequest({
-        body: {
-          apiProvider: { type: 'string', required: true },
-          credits: { type: 'number', required: true },
-          cost: { type: 'number', required: false },
-          expiryDate: { type: 'string', required: false },
-        },
-      }),
+      ValidationMiddleware.body(AddApiCreditsDto),
       controller.addApiCredits
     );
 

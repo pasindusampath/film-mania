@@ -1,7 +1,8 @@
 import { BaseRouter } from '../common/base_router';
 import { AuthController } from '../../controllers';
 import { authenticate } from '../../middleware';
-import { validateRequest } from '../../middleware/simple-validation';
+import { ValidationMiddleware } from '../../middleware/validation';
+import { RegisterDto, LoginDto, RefreshTokenDto } from '@nx-mono-repo-deployment-test/shared/src/dtos';
 
 /**
  * Authentication Router
@@ -40,37 +41,21 @@ export class AuthRouter extends BaseRouter {
     // Register new user
     this.router.post(
       '/register',
-      validateRequest({
-        body: {
-          email: { type: 'string', required: true, isEmail: true },
-          password: { type: 'string', required: true, minLength: 8 },
-          first_name: { type: 'string', required: false },
-          last_name: { type: 'string', required: false },
-        },
-      }),
+      ValidationMiddleware.body(RegisterDto),
       controller.register
     );
 
     // Login user
     this.router.post(
       '/login',
-      validateRequest({
-        body: {
-          email: { type: 'string', required: true, isEmail: true },
-          password: { type: 'string', required: true },
-        },
-      }),
+      ValidationMiddleware.body(LoginDto),
       controller.login
     );
 
     // Refresh token
     this.router.post(
       '/refresh',
-      validateRequest({
-        body: {
-          refreshToken: { type: 'string', required: true },
-        },
-      }),
+      ValidationMiddleware.body(RefreshTokenDto),
       controller.refresh
     );
 

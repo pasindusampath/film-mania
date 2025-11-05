@@ -6,3 +6,4 @@ export * from './IApiResponse';
 export * from './IHealthResponse';
 export * from './IValidatable';
 export * from './IMovie';
+export * from './admin';

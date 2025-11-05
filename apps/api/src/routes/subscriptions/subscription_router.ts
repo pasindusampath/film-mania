@@ -1,7 +1,8 @@
 import { BaseRouter } from '../common/base_router';
 import { SubscriptionController } from '../../controllers';
 import { authenticate, requireAdmin } from '../../middleware';
-import { validateRequest } from '../../middleware/simple-validation';
+import { ValidationMiddleware } from '../../middleware/validation';
+import { CreateSubscriptionDto, CancelSubscriptionDto } from '@nx-mono-repo-deployment-test/shared/src/dtos';
 
 /**
  * Subscription Router
@@ -44,12 +45,7 @@ export class SubscriptionRouter extends BaseRouter {
     this.router.post(
       '/create',
       authenticate,
-      validateRequest({
-        body: {
-          priceId: { type: 'string', required: true },
-          paymentMethodId: { type: 'string', required: false },
-        },
-      }),
+      ValidationMiddleware.body(CreateSubscriptionDto),
       controller.createSubscription
     );
 
@@ -57,12 +53,7 @@ export class SubscriptionRouter extends BaseRouter {
     this.router.post(
       '/cancel',
       authenticate,
-      validateRequest({
-        body: {
-          subscriptionId: { type: 'string', required: false },
-          cancelImmediately: { type: 'boolean', required: false },
-        },
-      }),
+      ValidationMiddleware.body(CancelSubscriptionDto),
       controller.cancelSubscription
     );
 
