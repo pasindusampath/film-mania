@@ -51,6 +51,14 @@ export class RouterManager {
     this.webhookRouter = new WebhookRouter();
     this.movieRouter = new MovieRouter();
     this.adminRouter = new AdminRouter();
+    
+    // Set API prefix for routers that need it (for Swagger documentation)
+    this.itemRouter.setApiPrefix(API_PREFIX);
+    this.authRouter.setApiPrefix(API_PREFIX);
+    this.subscriptionRouter.setApiPrefix(API_PREFIX);
+    this.movieRouter.setApiPrefix(API_PREFIX);
+    this.adminRouter.setApiPrefix(API_PREFIX);
+    
     this.configureRoutes();
   }
 

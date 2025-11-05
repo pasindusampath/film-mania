@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { RouteDocumentation } from '../../utils/swagger-route-builder';
+import { SwaggerDocRegistry } from '../../utils/swagger-doc-registry';
 
 /**
  * Abstract base class for all route classes
@@ -9,6 +11,7 @@ import { Router } from 'express';
  * - Include full path comments for clarity (RouterManager adds /api prefix automatically)
  * - Document all routes in the class JSDoc comment
  * - API routes get /api prefix automatically, health routes don't
+ * - Use registerSwaggerDocs() to register route documentation for Swagger
  * 
  * Example:
  * ```typescript
@@ -24,6 +27,7 @@ import { Router } from 'express';
  */
 export abstract class BaseRouter {
   protected router: Router;
+  private apiPrefix: string = '/api';
 
   constructor() {
     this.router = Router();
@@ -64,5 +68,45 @@ export abstract class BaseRouter {
    */
   protected bindMethod<T extends (...args: unknown[]) => unknown>(controllerMethod: T): T {
     return controllerMethod.bind(controllerMethod) as T;
+  }
+
+  /**
+   * Register Swagger documentation for routes
+   * This method should be called in initializeRoutes() after routes are defined
+   * @param docs - Array of route documentation objects
+   * @param useApiPrefix - Whether to prepend /api prefix (default: true for API routes)
+   */
+  protected registerSwaggerDocs(docs: RouteDocumentation[], useApiPrefix: boolean = true): void {
+    // Adjust paths with API prefix if needed
+    // Only add prefix if path doesn't already start with it
+    const adjustedDocs = docs.map((doc) => ({
+      ...doc,
+      path: useApiPrefix && !doc.path.startsWith(this.apiPrefix) 
+        ? `${this.apiPrefix}${doc.path}` 
+        : doc.path,
+    }));
+
+    SwaggerDocRegistry.registerRoutes(adjustedDocs);
+  }
+
+  /**
+   * Helper to build full path for Swagger documentation
+   * @param path - Route path (relative to base path)
+   * @param useApiPrefix - Whether to include /api prefix
+   * @returns Full path for Swagger
+   */
+  protected buildSwaggerPath(path: string, useApiPrefix: boolean = true): string {
+    const basePath = this.getBasePath();
+    const fullPath = path.startsWith('/') ? path : `/${path}`;
+    const combinedPath = `${basePath}${fullPath}`;
+    return useApiPrefix ? `${this.apiPrefix}${combinedPath}` : combinedPath;
+  }
+
+  /**
+   * Set API prefix (used by RouterManager)
+   * @param prefix - API prefix string
+   */
+  public setApiPrefix(prefix: string): void {
+    this.apiPrefix = prefix;
   }
 }

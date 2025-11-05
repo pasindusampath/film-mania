@@ -7,6 +7,7 @@ import { Server as HttpServer } from 'http';
 import Database from './database';
 import { RouterManager } from './routes';
 import { normalizeResponse, errorHandler } from './middleware';
+import { setupSwagger } from './middleware/swagger';
 import { getCurrentEnvironment, getEnvironmentDisplayName, isDevelopment } from './enums';
 import { appConfig } from './config/app.config';
 
@@ -71,6 +72,14 @@ class Server {
   }
 
   /**
+   * Setup Swagger documentation
+   * Must be called after routes are registered so documentation is available
+   */
+  private setupSwagger(): void {
+    setupSwagger(this.app);
+  }
+
+  /**
    * Setup error handlers
    * Note: Must be registered AFTER all routes
    */
@@ -112,6 +121,7 @@ class Server {
       // Setup application
       this.setupMiddleware();
       this.setupRoutes();
+      this.setupSwagger();
       this.setupErrorHandlers();
 
       // Start listening with error handling
