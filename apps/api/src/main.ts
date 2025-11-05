@@ -1,12 +1,10 @@
 import 'reflect-metadata'; // Required for decorators - MUST BE FIRST!
 import dotenv from 'dotenv';
 import Server from './server';
+import { appConfig } from './config/app.config';
 
 // Load environment variables
 dotenv.config();
-
-// Get port from environment or use default
-const port = parseInt(process.env.PORT || '3000', 10);
 
 // Get server instance
 const server = Server.getInstance();
@@ -61,7 +59,7 @@ process.on('exit', forceCleanup);
 process.on('beforeExit', forceCleanup);
 
 // Start the server
-server.start(port).catch((error) => {
+server.start(appConfig.port).catch((error) => {
   console.error('Failed to start server:', error);
   process.exit(1);
 });

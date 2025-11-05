@@ -8,6 +8,7 @@ import {
   IStreamingLink,
   MovieCategory,
 } from '@nx-mono-repo-deployment-test/shared';
+import { appConfig } from '../config/app.config';
 
 /**
  * Movie Service
@@ -15,15 +16,12 @@ import {
  */
 class MovieService {
   private tmdbClient: AxiosInstance;
-  private tmdbApiKey: string;
-  private tmdbBaseUrl = 'https://api.themoviedb.org/3';
 
   constructor() {
-    this.tmdbApiKey = process.env.TMDB_API_KEY || '';
     this.tmdbClient = axios.create({
-      baseURL: this.tmdbBaseUrl,
+      baseURL: appConfig.tmdb.baseUrl,
       params: {
-        api_key: this.tmdbApiKey,
+        api_key: appConfig.tmdb.apiKey,
       },
     });
   }

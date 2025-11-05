@@ -2,6 +2,7 @@ import { Sequelize } from 'sequelize-typescript';
 import dotenv from 'dotenv';
 import path from 'path';
 import { Environment, getCurrentEnvironment, getEnvironmentDisplayName } from '../enums';
+import { appConfig } from './app.config';
 
 /**
  * Environment to .env file mapping
@@ -52,12 +53,12 @@ const getConfig = () => {
   const env = getCurrentEnvironment();
   
   const dbConfig = {
-    dialect: 'postgres' as const,
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    database: process.env.DB_NAME || '',
-    username: process.env.DB_USER || '',
-    password: process.env.DB_PASSWORD || '',
+    dialect: appConfig.database.dialect as 'postgres',
+    host: appConfig.database.host,
+    port: appConfig.database.port,
+    database: appConfig.database.name,
+    username: appConfig.database.username,
+    password: appConfig.database.password,
     logging: env === Environment.DEVELOPMENT ? console.log : false,
     pool: {
       max: 5,

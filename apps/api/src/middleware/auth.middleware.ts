@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserModel } from '../models';
+import { appConfig } from '../config/app.config';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -31,18 +32,9 @@ export const authenticate = async (
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    const jwtSecret = process.env.JWT_SECRET;
-
-    if (!jwtSecret) {
-      res.status(500).json({
-        success: false,
-        error: 'JWT secret not configured',
-      });
-      return;
-    }
 
     try {
-      const decoded = jwt.verify(token, jwtSecret) as { id: string; email: string };
+      const decoded = jwt.verify(token, appConfig.jwt.secret) as { id: string; email: string };
 
       // Fetch user from database
       const user = await UserModel.findByPk(decoded.id);
@@ -100,15 +92,9 @@ export const optionalAuth = async (
     }
 
     const token = authHeader.substring(7);
-    const jwtSecret = process.env.JWT_SECRET;
-
-    if (!jwtSecret) {
-      next();
-      return;
-    }
 
     try {
-      const decoded = jwt.verify(token, jwtSecret) as { id: string; email: string };
+      const decoded = jwt.verify(token, appConfig.jwt.secret) as { id: string; email: string };
       const user = await UserModel.findByPk(decoded.id);
 
       if (user && user.is_active) {

@@ -8,6 +8,7 @@ import Database from './database';
 import { RouterManager } from './routes';
 import { normalizeResponse, errorHandler } from './middleware';
 import { getCurrentEnvironment, getEnvironmentDisplayName, isDevelopment } from './enums';
+import { appConfig } from './config/app.config';
 
 /**
  * Server class - Handles application lifecycle
@@ -41,12 +42,8 @@ class Server {
     this.app.use(helmet());
     
     // CORS configuration - allow frontend domains
-    const allowedOrigins = process.env.CORS_ORIGIN 
-      ? process.env.CORS_ORIGIN.split(',') 
-      : ['*'];
-    
     this.app.use(cors({
-      origin: allowedOrigins,
+      origin: appConfig.corsOrigin,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization']
