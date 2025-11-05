@@ -4,6 +4,7 @@
  */
 
 import type { StringValue } from 'ms';
+import { StreamingProvider } from '@nx-mono-repo-deployment-test/shared';
 
 /**
  * Application configuration interface
@@ -34,6 +35,27 @@ export interface AppConfig {
   tmdb: {
     apiKey: string;
     baseUrl: string;
+  };
+
+  // Streaming APIs
+  streaming: {
+    provider: StreamingProvider;
+    tmdb?: {
+      apiKey: string;
+      baseUrl: string;
+    };
+    vidapi?: {
+      apiKey?: string;
+      baseUrl?: string;
+    };
+    streamapi?: {
+      apiKey?: string;
+      baseUrl?: string;
+    };
+    watchmode?: {
+      apiKey?: string;
+      baseUrl?: string;
+    };
   };
 
   // Database
@@ -77,6 +99,32 @@ function loadConfig(): AppConfig {
   const tmdbApiKey = process.env.TMDB_API_KEY || '';
   const tmdbBaseUrl = process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3';
 
+  // Streaming API configuration
+  const streamingProviderEnv = process.env.STREAMING_PROVIDER || StreamingProvider.TMDB;
+  const streamingProvider = Object.values(StreamingProvider).includes(streamingProviderEnv as StreamingProvider)
+    ? (streamingProviderEnv as StreamingProvider)
+    : StreamingProvider.TMDB;
+  
+  const streamingConfig = {
+    provider: streamingProvider,
+    tmdb: {
+      apiKey: tmdbApiKey,
+      baseUrl: tmdbBaseUrl,
+    },
+    vidapi: {
+      apiKey: process.env.VIDAPI_API_KEY,
+      baseUrl: process.env.VIDAPI_BASE_URL || 'https://api.vidapi.io',
+    },
+    streamapi: {
+      apiKey: process.env.STREAMAPI_API_KEY,
+      baseUrl: process.env.STREAMAPI_BASE_URL || 'https://api.streamapi.com',
+    },
+    watchmode: {
+      apiKey: process.env.WATCHMODE_API_KEY,
+      baseUrl: process.env.WATCHMODE_BASE_URL || 'https://api.watchmode.com/v1',
+    },
+  };
+
   // Database configuration
   const dbHost = process.env.DB_HOST || 'localhost';
   const dbPort = parseInt(process.env.DB_PORT || '5432', 10);
@@ -105,6 +153,7 @@ function loadConfig(): AppConfig {
       apiKey: tmdbApiKey,
       baseUrl: tmdbBaseUrl,
     },
+    streaming: streamingConfig,
     database: {
       host: dbHost,
       port: dbPort,

@@ -10,6 +10,7 @@ import {
   MovieCategory,
 } from '@nx-mono-repo-deployment-test/shared';
 import { appConfig } from '../config/app.config';
+import streamingService from './streaming.service';
 
 /**
  * Movie Service
@@ -123,13 +124,19 @@ class MovieService {
   }
 
   /**
-   * Get streaming links (placeholder - integrate with VidAPI/StreamAPI)
+   * Get streaming links for a movie
+   * Uses the configured streaming provider (TMDB, VidAPI, StreamAPI, or Watchmode)
    */
-  async getStreamingLinks(_tmdbId: number): Promise<IStreamingLink[]> {
+  async getStreamingLinks(tmdbId: number): Promise<IStreamingLink[]> {
     try {
-      // TODO: Integrate with VidAPI/StreamAPI
-      // For now, return empty array
-      return [];
+      if (!tmdbId) {
+        return [];
+      }
+
+      // Use streaming service to get links
+      const links = await streamingService.getStreamingLinks(tmdbId);
+      
+      return links;
     } catch (error: unknown) {
       console.error('Streaming links error:', error);
       return [];

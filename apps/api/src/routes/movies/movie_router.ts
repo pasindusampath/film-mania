@@ -50,6 +50,9 @@ export class MovieRouter extends BaseRouter {
 
     // Search movies
     this.router.get('/search/:query', optionalAuth, controller.searchMovies);
+
+    // Get streaming links for a movie
+    this.router.get('/:id/streaming', optionalAuth, controller.getStreamingLinks);
   }
 
   /**
@@ -70,6 +73,7 @@ export class MovieRouter extends BaseRouter {
       { path: '/categories/list', methods: ['GET'] },
       { path: '/category/:category', methods: ['GET'] },
       { path: '/search/:query', methods: ['GET'] },
+      { path: '/:id/streaming', methods: ['GET'] },
     ];
   }
 }

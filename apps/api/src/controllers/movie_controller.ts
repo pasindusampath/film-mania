@@ -199,6 +199,43 @@ class MovieController {
       res.sendError(errorMessage, 500);
     }
   };
+
+  /**
+   * GET /api/movies/:id/streaming
+   * Get streaming links for a movie
+   */
+  getStreamingLinks = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      // Find movie by ID
+      const movie = await MovieModel.findByPk(id);
+
+      if (!movie) {
+        res.sendError('Movie not found', 404);
+        return;
+      }
+
+      // Check if movie has TMDB ID
+      if (!movie.tmdb_id) {
+        res.sendError('Movie does not have TMDB ID', 400);
+        return;
+      }
+
+      // Get streaming links
+      const links = await movieService.getStreamingLinks(movie.tmdb_id);
+
+      res.sendSuccess({
+        movie_id: movie.id,
+        tmdb_id: movie.tmdb_id,
+        title: movie.title,
+        streaming_links: links,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to get streaming links';
+      res.sendError(errorMessage, 500);
+    }
+  };
 }
 
 export default MovieController;

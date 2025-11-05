@@ -8,4 +8,5 @@ export * from './AdminFundingStatus';
 export * from './PlanType';
 export * from './PaymentStatus';
 export * from './UserRole';
+export * from './StreamingProvider';
 
