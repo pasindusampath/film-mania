@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import apiClient from '../../../lib/api';
 
 interface Movie {
@@ -18,7 +19,7 @@ interface Movie {
 
 export default function MovieDetailPage() {
   const params = useParams();
-  const movieId = params.id as string;
+  const movieId = params?.id as string | undefined;
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,6 +28,7 @@ export default function MovieDetailPage() {
     if (movieId) {
       fetchMovie();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [movieId]);
 
   const fetchMovie = async () => {
@@ -50,7 +52,7 @@ export default function MovieDetailPage() {
   return (
     <main style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <a href="/movies" style={{ color: '#0070f3', textDecoration: 'none' }}>← Back to Movies</a>
+        <Link href="/movies" style={{ color: '#0070f3', textDecoration: 'none' }}>← Back to Movies</Link>
       </div>
       
       <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '2rem', marginBottom: '2rem' }}>
