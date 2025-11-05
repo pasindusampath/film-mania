@@ -17,30 +17,34 @@ class AuthController {
     try {
       const { email, password, first_name, last_name } = req.body;
 
-      const user = await authService.register({
+      const result = await authService.register({
         email,
         password,
         first_name,
         last_name,
       });
 
-      // Generate tokens
-      const tokens = authService.generateTokens(user.id, user.email);
+      if (result.success && result.data) {
+        // Generate tokens
+        const tokens = authService.generateTokens(result.data.id!, result.data.email);
 
-      res.sendSuccess(
-        {
-          user: {
-            id: user.id,
-            email: user.email,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            subscription_status: user.subscription_status,
+        res.sendSuccess(
+          {
+            user: {
+              id: result.data.id,
+              email: result.data.email,
+              first_name: result.data.first_name,
+              last_name: result.data.last_name,
+              subscription_status: result.data.subscription_status,
+            },
+            ...tokens,
           },
-          ...tokens,
-        },
-        'User registered successfully',
-        201
-      );
+          result.message || 'User registered successfully',
+          201
+        );
+      } else {
+        res.sendError(result.error || 'Registration failed', 400);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Registration failed';
       res.sendError(errorMessage, 400);
@@ -55,22 +59,26 @@ class AuthController {
     try {
       const { email, password } = req.body;
 
-      const { user, tokens } = await authService.login({ email, password });
+      const result = await authService.login({ email, password });
 
-      res.sendSuccess(
-        {
-          user: {
-            id: user.id,
-            email: user.email,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            subscription_status: user.subscription_status,
-            is_admin: user.is_admin,
+      if (result.success && result.data) {
+        res.sendSuccess(
+          {
+            user: {
+              id: result.data.user.id,
+              email: result.data.user.email,
+              first_name: result.data.user.first_name,
+              last_name: result.data.user.last_name,
+              subscription_status: result.data.user.subscription_status,
+              is_admin: result.data.user.is_admin,
+            },
+            ...result.data.tokens,
           },
-          ...tokens,
-        },
-        'Login successful'
-      );
+          result.message || 'Login successful'
+        );
+      } else {
+        res.sendError(result.error || 'Login failed', 401);
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
       res.sendError(errorMessage, 401);
@@ -108,14 +116,25 @@ class AuthController {
         return;
       }
 
-      const user = await UserModel.findByPk(userId, {
+      const userModel = await UserModel.findByPk(userId, {
         attributes: ['id', 'email', 'first_name', 'last_name', 'subscription_status', 'is_admin', 'created_at'],
       });
 
-      if (!user) {
+      if (!userModel) {
         res.sendError('User not found', 404);
         return;
       }
+
+      // Convert model to plain interface object
+      const user = {
+        id: userModel.id,
+        email: userModel.email,
+        first_name: userModel.first_name,
+        last_name: userModel.last_name,
+        subscription_status: userModel.subscription_status,
+        is_admin: userModel.is_admin,
+        created_at: userModel.created_at,
+      };
 
       res.sendSuccess({ user }, 'User retrieved successfully');
     } catch (error) {

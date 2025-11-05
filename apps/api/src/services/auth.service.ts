@@ -1,8 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { UserModel } from '../models';
 import { UserDao } from '../dao';
-import { IRegisterData, ILoginData, IAuthTokens } from '@nx-mono-repo-deployment-test/shared';
+import { IRegisterData, ILoginData, IAuthTokens, IUser, IApiResponse } from '@nx-mono-repo-deployment-test/shared';
 import { appConfig } from '../config/app.config';
 
 /**
@@ -21,59 +20,123 @@ class AuthService {
   /**
    * Register a new user
    */
-  async register(data: IRegisterData): Promise<UserModel> {
-    // Check if user already exists
-    const existingUser = await this.userDao.findByEmail(data.email);
+  async register(data: IRegisterData): Promise<IApiResponse<IUser>> {
+    try {
+      // Check if user already exists
+      const existingUser = await this.userDao.findByEmail(data.email);
 
-    if (existingUser) {
-      throw new Error('User with this email already exists');
+      if (existingUser) {
+        return {
+          success: false,
+          error: 'User with this email already exists',
+        };
+      }
+
+      // Hash password
+      const passwordHash = await bcrypt.hash(data.password, this.SALT_ROUNDS);
+
+      // Create user
+      const userModel = await this.userDao.create({
+        email: data.email,
+        password: passwordHash,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        subscription_status: 'inactive',
+      });
+
+      // Convert model to plain interface object
+      const user: IUser = {
+        id: userModel.id,
+        email: userModel.email,
+        first_name: userModel.first_name,
+        last_name: userModel.last_name,
+        subscription_status: userModel.subscription_status,
+        is_admin: userModel.is_admin,
+        is_active: userModel.is_active,
+        last_login: userModel.last_login,
+        created_at: userModel.created_at,
+        updated_at: userModel.updated_at,
+      };
+
+      return {
+        success: true,
+        data: user,
+        message: 'User registered successfully',
+      };
+    } catch (error) {
+      console.error('Error in AuthService.register:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to register user',
+      };
     }
-
-    // Hash password
-    const passwordHash = await bcrypt.hash(data.password, this.SALT_ROUNDS);
-
-    // Create user
-    const user = await this.userDao.create({
-      email: data.email,
-      password: passwordHash,
-      first_name: data.first_name,
-      last_name: data.last_name,
-      subscription_status: 'inactive',
-    });
-
-    return user;
   }
 
   /**
    * Login user and generate tokens
    */
-  async login(data: ILoginData): Promise<{ user: UserModel; tokens: IAuthTokens }> {
-    // Find user
-    const user = await this.userDao.findByEmail(data.email);
+  async login(data: ILoginData): Promise<IApiResponse<{ user: IUser; tokens: IAuthTokens }>> {
+    try {
+      // Find user
+      const userModel = await this.userDao.findByEmail(data.email);
 
-    if (!user) {
-      throw new Error('Invalid email or password');
+      if (!userModel) {
+        return {
+          success: false,
+          error: 'Invalid email or password',
+        };
+      }
+
+      if (!userModel.is_active) {
+        return {
+          success: false,
+          error: 'Account is inactive',
+        };
+      }
+
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(data.password, userModel.password_hash);
+
+      if (!isPasswordValid) {
+        return {
+          success: false,
+          error: 'Invalid email or password',
+        };
+      }
+
+      // Update last login
+      userModel.last_login = new Date();
+      await userModel.save();
+
+      // Generate tokens
+      const tokens = this.generateTokens(userModel.id, userModel.email);
+
+      // Convert model to plain interface object
+      const user: IUser = {
+        id: userModel.id,
+        email: userModel.email,
+        first_name: userModel.first_name,
+        last_name: userModel.last_name,
+        subscription_status: userModel.subscription_status,
+        is_admin: userModel.is_admin,
+        is_active: userModel.is_active,
+        last_login: userModel.last_login,
+        created_at: userModel.created_at,
+        updated_at: userModel.updated_at,
+      };
+
+      return {
+        success: true,
+        data: { user, tokens },
+        message: 'Login successful',
+      };
+    } catch (error) {
+      console.error('Error in AuthService.login:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Login failed',
+      };
     }
-
-    if (!user.is_active) {
-      throw new Error('Account is inactive');
-    }
-
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(data.password, user.password_hash);
-
-    if (!isPasswordValid) {
-      throw new Error('Invalid email or password');
-    }
-
-    // Update last login
-    user.last_login = new Date();
-    await user.save();
-
-    // Generate tokens
-    const tokens = this.generateTokens(user.id, user.email);
-
-    return { user, tokens };
   }
 
   /**

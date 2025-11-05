@@ -4,4 +4,5 @@
 export * from './IRegisterData';
 export * from './ILoginData';
 export * from './IAuthTokens';
+export * from './IUser';
 
