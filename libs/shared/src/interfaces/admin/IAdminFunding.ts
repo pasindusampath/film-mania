@@ -1,3 +1,5 @@
+import { AdminFundingStatus } from '../../enums';
+
 /**
  * Admin Funding interface
  */
@@ -8,7 +10,7 @@ export interface IAdminFunding {
   months_funded: number;
   start_date?: Date;
   end_date: Date;
-  status: 'active' | 'expired' | 'cancelled';
+  status: AdminFundingStatus;
   created_by?: string;
   created_at?: Date;
   updated_at?: Date;

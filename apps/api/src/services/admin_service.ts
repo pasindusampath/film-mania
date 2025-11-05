@@ -1,5 +1,5 @@
-import { AdminFundingModel, UserModel, SubscriptionModel, ApiCreditModel } from '../models';
-import { IApiResponse, IAdminFunding, IApiCredit, ISubscription } from '@nx-mono-repo-deployment-test/shared/src/interfaces';
+import { AdminDao, UserDao, SubscriptionDao, ApiCreditDao } from '../dao';
+import { IApiResponse, IAdminFunding, IApiCredit, ISubscription, AdminFundingStatus, SubscriptionStatus, PlanType } from '@nx-mono-repo-deployment-test/shared';
 
 /**
  * Service layer for Admin business logic
@@ -7,9 +7,17 @@ import { IApiResponse, IAdminFunding, IApiCredit, ISubscription } from '@nx-mono
  */
 class AdminService {
   private static instance: AdminService;
+  private adminDao: AdminDao;
+  private userDao: UserDao;
+  private subscriptionDao: SubscriptionDao;
+  private apiCreditDao: ApiCreditDao;
 
   private constructor() {
-    // Private constructor for singleton pattern
+    // Initialize DAOs
+    this.adminDao = AdminDao.getInstance();
+    this.userDao = UserDao.getInstance();
+    this.subscriptionDao = SubscriptionDao.getInstance();
+    this.apiCreditDao = ApiCreditDao.getInstance();
   }
 
   /**
@@ -33,7 +41,7 @@ class AdminService {
   ): Promise<IApiResponse<{ funding: IAdminFunding; subscription: ISubscription }>> {
     try {
       // Get user
-      const user = await UserModel.findByPk(userId);
+      const user = await this.userDao.findById(userId);
       if (!user) {
         return {
           success: false,
@@ -47,35 +55,34 @@ class AdminService {
       endDate.setMonth(endDate.getMonth() + months);
 
       // Create funding record
-      const fundingModel = await AdminFundingModel.create({
+      const funding = await this.adminDao.createFunding({
         user_id: userId,
         amount: amount || 0,
         months_funded: months,
         start_date: startDate,
         end_date: endDate,
-        status: 'active',
+        status: AdminFundingStatus.ACTIVE,
         created_by: adminId,
       });
 
       // Create or update subscription
-      let subscriptionModel = await SubscriptionModel.findOne({
-        where: { user_id: userId },
-        order: [['created_at', 'DESC']],
-      });
-
-      if (subscriptionModel) {
+      const existingSubscription = await this.subscriptionDao.findByUserId(userId);
+      
+      let subscription: ISubscription;
+      if (existingSubscription) {
         // Extend existing subscription
-        await subscriptionModel.update({
+        const updated = await this.subscriptionDao.updateByUserId(userId, {
           end_date: endDate,
           funded_by_admin: true,
-          status: 'active',
+          status: SubscriptionStatus.ACTIVE,
         });
+        subscription = updated!;
       } else {
         // Create new subscription
-        subscriptionModel = await SubscriptionModel.create({
+        subscription = await this.subscriptionDao.create({
           user_id: userId,
-          status: 'active',
-          plan_type: 'monthly',
+          status: SubscriptionStatus.ACTIVE,
+          plan_type: PlanType.MONTHLY,
           start_date: startDate,
           end_date: endDate,
           funded_by_admin: true,
@@ -83,39 +90,7 @@ class AdminService {
       }
 
       // Update user subscription status
-      await user.update({
-        subscription_status: 'active',
-      });
-
-      // Convert models to plain interface objects
-      const funding: IAdminFunding = {
-        id: fundingModel.id,
-        user_id: fundingModel.user_id,
-        amount: Number(fundingModel.amount),
-        months_funded: fundingModel.months_funded,
-        start_date: fundingModel.start_date,
-        end_date: fundingModel.end_date,
-        status: fundingModel.status as 'active' | 'expired' | 'cancelled',
-        created_by: fundingModel.created_by,
-        created_at: fundingModel.created_at,
-        updated_at: fundingModel.updated_at,
-      };
-
-      const subscription: ISubscription = {
-        id: subscriptionModel.id,
-        user_id: subscriptionModel.user_id,
-        stripe_subscription_id: subscriptionModel.stripe_subscription_id,
-        status: subscriptionModel.status as 'active' | 'inactive' | 'cancelled' | 'past_due' | 'trialing',
-        plan_type: subscriptionModel.plan_type as 'monthly' | 'yearly',
-        start_date: subscriptionModel.start_date,
-        end_date: subscriptionModel.end_date,
-        current_period_start: subscriptionModel.current_period_start,
-        current_period_end: subscriptionModel.current_period_end,
-        funded_by_admin: subscriptionModel.funded_by_admin,
-        cancelled_at: subscriptionModel.cancelled_at,
-        created_at: subscriptionModel.created_at,
-        updated_at: subscriptionModel.updated_at,
-      };
+      await this.userDao.updateSubscriptionStatus(userId, 'active');
 
       return {
         success: true,
@@ -139,22 +114,7 @@ class AdminService {
    */
   public async getApiCredits(): Promise<IApiResponse<IApiCredit[]>> {
     try {
-      const creditModels = await ApiCreditModel.findAll({
-        order: [['purchase_date', 'DESC']],
-      });
-
-      // Convert models to plain interface objects
-      const credits: IApiCredit[] = creditModels.map((model) => ({
-        id: model.id,
-        api_provider: model.api_provider,
-        credits_purchased: model.credits_purchased,
-        credits_used: model.credits_used,
-        purchase_date: model.purchase_date,
-        expiry_date: model.expiry_date,
-        cost: model.cost ? Number(model.cost) : undefined,
-        created_at: model.created_at,
-        updated_at: model.updated_at,
-      }));
+      const credits = await this.apiCreditDao.findAll();
 
       return {
         success: true,
@@ -179,7 +139,7 @@ class AdminService {
     expiryDate?: string
   ): Promise<IApiResponse<IApiCredit>> {
     try {
-      const creditModel = await ApiCreditModel.create({
+      const credit = await this.apiCreditDao.create({
         api_provider: apiProvider,
         credits_purchased: credits,
         credits_used: 0,
@@ -187,19 +147,6 @@ class AdminService {
         purchase_date: new Date(),
         expiry_date: expiryDate ? new Date(expiryDate) : null,
       });
-
-      // Convert model to plain interface object
-      const credit: IApiCredit = {
-        id: creditModel.id,
-        api_provider: creditModel.api_provider,
-        credits_purchased: creditModel.credits_purchased,
-        credits_used: creditModel.credits_used,
-        purchase_date: creditModel.purchase_date,
-        expiry_date: creditModel.expiry_date,
-        cost: creditModel.cost ? Number(creditModel.cost) : undefined,
-        created_at: creditModel.created_at,
-        updated_at: creditModel.updated_at,
-      };
 
       return {
         success: true,
@@ -226,22 +173,20 @@ class AdminService {
     activeFundings: number;
   }>> {
     try {
-      const totalFunding = await AdminFundingModel.findAll({
-        where: { status: 'active' },
-      });
+      const activeFundings = await this.adminDao.findActiveFundings();
 
-      const totalAmount = totalFunding.reduce((sum, f) => sum + Number(f.amount), 0);
-      const totalUsers = new Set(totalFunding.map((f) => f.user_id)).size;
-      const totalMonths = totalFunding.reduce((sum, f) => sum + f.months_funded, 0);
+      const totalAmount = activeFundings.reduce((sum, f) => sum + f.amount, 0);
+      const totalUsers = new Set(activeFundings.map((f) => f.user_id)).size;
+      const totalMonths = activeFundings.reduce((sum, f) => sum + f.months_funded, 0);
 
       return {
         success: true,
         data: {
-          totalFunding: totalFunding.length,
+          totalFunding: activeFundings.length,
           totalAmount,
           totalUsers,
           totalMonths,
-          activeFundings: totalFunding.length,
+          activeFundings: activeFundings.length,
         },
       };
     } catch (error) {
@@ -258,45 +203,7 @@ class AdminService {
    */
   public async getFundedUsers(): Promise<IApiResponse<IAdminFunding[]>> {
     try {
-      const fundingModels = await AdminFundingModel.findAll({
-        where: { status: 'active' },
-        include: [
-          {
-            model: UserModel,
-            as: 'user',
-            attributes: ['id', 'email', 'first_name', 'last_name'],
-          },
-        ],
-        order: [['created_at', 'DESC']],
-      });
-
-      // Convert models to plain interface objects
-      const fundings: IAdminFunding[] = fundingModels.map((model) => {
-        const funding: IAdminFunding = {
-          id: model.id,
-          user_id: model.user_id,
-          amount: Number(model.amount),
-          months_funded: model.months_funded,
-          start_date: model.start_date,
-          end_date: model.end_date,
-          status: model.status as 'active' | 'expired' | 'cancelled',
-          created_by: model.created_by,
-          created_at: model.created_at,
-          updated_at: model.updated_at,
-        };
-
-        // Include user association if present
-        if (model.user) {
-          funding.user = {
-            id: model.user.id,
-            email: model.user.email,
-            first_name: model.user.first_name,
-            last_name: model.user.last_name,
-          };
-        }
-
-        return funding;
-      });
+      const fundings = await this.adminDao.findFundedUsersWithDetails();
 
       return {
         success: true,

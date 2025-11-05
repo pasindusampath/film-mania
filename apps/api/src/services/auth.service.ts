@@ -1,25 +1,9 @@
 import * as bcrypt from 'bcrypt';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { UserModel } from '../models';
+import { UserDao } from '../dao';
+import { IRegisterData, ILoginData, IAuthTokens } from '@nx-mono-repo-deployment-test/shared';
 import { appConfig } from '../config/app.config';
-
-export interface RegisterData {
-  email: string;
-  password: string;
-  first_name?: string;
-  last_name?: string;
-}
-
-export interface LoginData {
-  email: string;
-  password: string;
-}
-
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
 
 /**
  * Authentication Service
@@ -27,19 +11,19 @@ export interface AuthTokens {
  */
 class AuthService {
   private readonly SALT_ROUNDS = 10;
+  private userDao: UserDao;
 
   constructor() {
     // Configuration loaded from centralized app.config
+    this.userDao = UserDao.getInstance();
   }
 
   /**
    * Register a new user
    */
-  async register(data: RegisterData): Promise<UserModel> {
+  async register(data: IRegisterData): Promise<UserModel> {
     // Check if user already exists
-    const existingUser = await UserModel.findOne({
-      where: { email: data.email },
-    });
+    const existingUser = await this.userDao.findByEmail(data.email);
 
     if (existingUser) {
       throw new Error('User with this email already exists');
@@ -49,14 +33,12 @@ class AuthService {
     const passwordHash = await bcrypt.hash(data.password, this.SALT_ROUNDS);
 
     // Create user
-    const user = await UserModel.create({
+    const user = await this.userDao.create({
       email: data.email,
-      password_hash: passwordHash,
+      password: passwordHash,
       first_name: data.first_name,
       last_name: data.last_name,
       subscription_status: 'inactive',
-      is_admin: false,
-      is_active: true,
     });
 
     return user;
@@ -65,11 +47,9 @@ class AuthService {
   /**
    * Login user and generate tokens
    */
-  async login(data: LoginData): Promise<{ user: UserModel; tokens: AuthTokens }> {
+  async login(data: ILoginData): Promise<{ user: UserModel; tokens: IAuthTokens }> {
     // Find user
-    const user = await UserModel.findOne({
-      where: { email: data.email },
-    });
+    const user = await this.userDao.findByEmail(data.email);
 
     if (!user) {
       throw new Error('Invalid email or password');
@@ -99,7 +79,7 @@ class AuthService {
   /**
    * Generate access and refresh tokens
    */
-  generateTokens(userId: string, email: string): AuthTokens {
+  generateTokens(userId: string, email: string): IAuthTokens {
     const payload = { id: userId, email };
 
     const accessTokenOptions: SignOptions = {
@@ -126,7 +106,7 @@ class AuthService {
   /**
    * Refresh access token using refresh token
    */
-  async refreshToken(refreshToken: string): Promise<AuthTokens> {
+  async refreshToken(refreshToken: string): Promise<IAuthTokens> {
     try {
       const decoded = jwt.verify(refreshToken, appConfig.jwt.refreshSecret) as {
         id: string;
@@ -134,7 +114,7 @@ class AuthService {
       };
 
       // Verify user still exists and is active
-      const user = await UserModel.findByPk(decoded.id);
+      const user = await this.userDao.findById(decoded.id);
 
       if (!user || !user.is_active) {
         throw new Error('User not found or inactive');
@@ -180,7 +160,7 @@ class AuthService {
    * Verify password
    */
   async verifyPassword(userId: string, password: string): Promise<boolean> {
-    const user = await UserModel.findByPk(userId);
+    const user = await this.userDao.findById(userId);
     if (!user) {
       return false;
     }

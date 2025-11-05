@@ -1,4 +1,5 @@
 import { IAdminFunding } from '../../../interfaces/admin/IAdminFunding';
+import { AdminFundingStatus } from '../../../enums';
 import { IsString, IsNumber, IsDate, IsOptional, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -28,8 +29,8 @@ export class AdminFundingResponseDto implements IAdminFunding {
   @IsDate()
   end_date: Date;
 
-  @IsEnum(['active', 'expired', 'cancelled'])
-  status: 'active' | 'expired' | 'cancelled';
+  @IsEnum(AdminFundingStatus)
+  status: AdminFundingStatus;
 
   @IsOptional()
   @IsString()

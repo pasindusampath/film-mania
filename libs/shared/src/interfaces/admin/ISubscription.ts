@@ -1,3 +1,5 @@
+import { SubscriptionStatus, PlanType } from '../../enums';
+
 /**
  * Subscription interface
  */
@@ -5,8 +7,8 @@ export interface ISubscription {
   id?: string;
   user_id: string;
   stripe_subscription_id?: string;
-  status: 'active' | 'inactive' | 'cancelled' | 'past_due' | 'trialing';
-  plan_type: 'monthly' | 'yearly';
+  status: SubscriptionStatus;
+  plan_type: PlanType;
   start_date?: Date;
   end_date?: Date;
   current_period_start?: Date;

@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
-import { SubscriptionModel, PaymentModel } from '../models';
+import { PaymentModel } from '../models';
+import { SubscriptionDao, PaymentDao } from '../dao';
 import { appConfig } from '../config/app.config';
 import { isProduction } from '../enums';
 
@@ -10,6 +11,14 @@ import { isProduction } from '../enums';
 class StripeService {
   private stripe: Stripe | null = null;
   private initialized: boolean = false;
+  private subscriptionDao: SubscriptionDao;
+  private paymentDao: PaymentDao;
+
+  constructor() {
+    // Initialize DAOs
+    this.subscriptionDao = SubscriptionDao.getInstance();
+    this.paymentDao = PaymentDao.getInstance();
+  }
 
   /**
    * Initialize Stripe client (lazy initialization)
@@ -261,25 +270,29 @@ class StripeService {
     userId: string,
     subscriptionId?: string
   ): Promise<PaymentModel> {
-    let payment = await PaymentModel.findOne({
-      where: { stripe_payment_intent_id: paymentIntent.id },
-    });
+    const existingPayment = await this.paymentDao.findByStripePaymentIntentId(paymentIntent.id);
 
     const paymentData = {
       user_id: userId,
-      subscription_id: subscriptionId || null,
-      stripe_payment_id: paymentIntent.id,
-      stripe_payment_intent_id: paymentIntent.id,
       amount: paymentIntent.amount / 100, // Convert from cents
       currency: paymentIntent.currency,
       status: this.mapPaymentStatus(paymentIntent.status),
-      payment_method: paymentIntent.payment_method_types[0] || null,
+      stripe_payment_intent_id: paymentIntent.id,
+      subscription_id: subscriptionId,
+      metadata: {
+        payment_method: paymentIntent.payment_method_types[0] || null,
+      },
     };
 
-    if (payment) {
-      await payment.update(paymentData);
+    let payment: PaymentModel;
+    if (existingPayment) {
+      payment = (await this.paymentDao.updateByStripePaymentIntentId(paymentIntent.id, {
+        status: paymentData.status,
+        amount: paymentData.amount,
+        metadata: paymentData.metadata,
+      }))!;
     } else {
-      payment = await PaymentModel.create(paymentData);
+      payment = await this.paymentDao.create(paymentData);
     }
 
     return payment;

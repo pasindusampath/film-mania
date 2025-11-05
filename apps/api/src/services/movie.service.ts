@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
-import { MovieModel, MovieCategoryModel, ApiUsageModel, ApiCreditModel } from '../models';
+import { MovieModel } from '../models';
+import { MovieDao, ApiCreditDao, ApiUsageDao } from '../dao';
 import {
   ITMDBMovie,
   ITMDBMovieListResponse,
@@ -16,6 +17,9 @@ import { appConfig } from '../config/app.config';
  */
 class MovieService {
   private tmdbClient: AxiosInstance;
+  private movieDao: MovieDao;
+  private apiCreditDao: ApiCreditDao;
+  private apiUsageDao: ApiUsageDao;
 
   constructor() {
     this.tmdbClient = axios.create({
@@ -24,6 +28,11 @@ class MovieService {
         api_key: appConfig.tmdb.apiKey,
       },
     });
+    
+    // Initialize DAOs
+    this.movieDao = MovieDao.getInstance();
+    this.apiCreditDao = ApiCreditDao.getInstance();
+    this.apiUsageDao = ApiUsageDao.getInstance();
   }
 
   /**
@@ -131,16 +140,14 @@ class MovieService {
    * Save movie to database
    */
   async saveMovieToDatabase(tmdbData: ITMDBMovie | ITMDBMovieDetails, categories: MovieCategory[]): Promise<MovieModel> {
-    let movie = await MovieModel.findOne({
-      where: { tmdb_id: tmdbData.id },
-    });
+    let movie = await this.movieDao.findByTmdbId(tmdbData.id);
 
     const movieData = {
       tmdb_id: tmdbData.id,
       title: tmdbData.title,
-      overview: tmdbData.overview,
-      poster_path: tmdbData.poster_path,
-      backdrop_path: tmdbData.backdrop_path,
+      overview: tmdbData.overview || undefined,
+      poster_path: tmdbData.poster_path || undefined,
+      backdrop_path: tmdbData.backdrop_path || undefined,
       release_date: tmdbData.release_date,
       language: tmdbData.original_language,
       original_language: tmdbData.original_language,
@@ -153,36 +160,28 @@ class MovieService {
     };
 
     if (movie) {
-      await movie.update(movieData);
+      await this.movieDao.updateByTmdbId(tmdbData.id, movieData);
     } else {
-      movie = await MovieModel.create(movieData);
+      movie = await this.movieDao.create(movieData);
     }
 
     // Save categories
     if (categories.length > 0) {
-      await MovieCategoryModel.destroy({
-        where: { movie_id: movie.id },
-      });
+      await this.movieDao.deleteCategories(movie!.id);
 
       for (const category of categories) {
-        await MovieCategoryModel.create({
-          movie_id: movie.id,
-          category,
-        });
+        await this.movieDao.createCategory(movie!.id, category);
       }
     }
 
-    return movie;
+    return movie!;
   }
 
   /**
    * Check API credits before making request
    */
   private async checkApiCredits(provider: string): Promise<void> {
-    const credit = await ApiCreditModel.findOne({
-      where: { api_provider: provider },
-      order: [['purchase_date', 'DESC']],
-    });
+    const credit = await this.apiCreditDao.findByProvider(provider);
 
     if (!credit) {
       throw new Error(`No API credits available for ${provider}`);
@@ -206,7 +205,7 @@ class MovieService {
     requestType?: string
   ): Promise<void> {
     try {
-      await ApiUsageModel.create({
+      await this.apiUsageDao.create({
         api_provider: provider,
         endpoint,
         credits_used: 1,
@@ -214,13 +213,10 @@ class MovieService {
       });
 
       // Update credit usage
-      const credit = await ApiCreditModel.findOne({
-        where: { api_provider: provider },
-        order: [['purchase_date', 'DESC']],
-      });
+      const credit = await this.apiCreditDao.findByProvider(provider);
 
-      if (credit) {
-        await credit.increment('credits_used');
+      if (credit && credit.id) {
+        await this.apiCreditDao.incrementCreditsUsed(credit.id);
       }
     } catch (error) {
       console.error('Error tracking API usage:', error);

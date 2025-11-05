@@ -1,4 +1,5 @@
 import { ISubscription } from '../../../interfaces/admin/ISubscription';
+import { SubscriptionStatus, PlanType } from '../../../enums';
 import { IsString, IsBoolean, IsDate, IsOptional, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -17,11 +18,11 @@ export class SubscriptionResponseDto implements ISubscription {
   @IsString()
   stripe_subscription_id?: string;
 
-  @IsEnum(['active', 'inactive', 'cancelled', 'past_due', 'trialing'])
-  status: 'active' | 'inactive' | 'cancelled' | 'past_due' | 'trialing';
+  @IsEnum(SubscriptionStatus)
+  status: SubscriptionStatus;
 
-  @IsEnum(['monthly', 'yearly'])
-  plan_type: 'monthly' | 'yearly';
+  @IsEnum(PlanType)
+  plan_type: PlanType;
 
   @IsOptional()
   @Type(() => Date)
