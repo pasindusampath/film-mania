@@ -4,6 +4,7 @@
 export { default as ItemDao } from './item_dao';
 export { default as AdminDao } from './admin_dao';
 export { default as UserDao } from './user_dao';
+export { default as AuthDao } from './auth_dao';
 export { default as SubscriptionDao } from './subscription_dao';
 export { default as ApiCreditDao } from './api_credit_dao';
 export { default as MovieDao } from './movie_dao';

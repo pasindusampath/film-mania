@@ -1,13 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { UserModel } from '../models';
+import { AuthDao } from '../dao';
+import { UserRole } from '@nx-mono-repo-deployment-test/shared';
 import { appConfig } from '../config/app.config';
 
 export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
-    is_admin: boolean;
+    role: UserRole;
   };
 }
 
@@ -33,19 +34,20 @@ export const authenticate = async (
     try {
       const decoded = jwt.verify(token, appConfig.jwt.secret) as { id: string; email: string };
 
-      // Fetch user from database
-      const user = await UserModel.findByPk(decoded.id);
+      // Fetch auth record from database
+      const authDao = AuthDao.getInstance();
+      const auth = await authDao.findByUserId(decoded.id);
 
-      if (!user || !user.is_active) {
+      if (!auth || !auth.is_active) {
         res.sendError('User not found or inactive', 401);
         return;
       }
 
       // Attach user to request
       req.user = {
-        id: user.id,
-        email: user.email,
-        is_admin: user.is_admin,
+        id: decoded.id,
+        email: decoded.email,
+        role: auth.role,
       };
 
       next();
@@ -83,13 +85,14 @@ export const optionalAuth = async (
 
     try {
       const decoded = jwt.verify(token, appConfig.jwt.secret) as { id: string; email: string };
-      const user = await UserModel.findByPk(decoded.id);
+      const authDao = AuthDao.getInstance();
+      const auth = await authDao.findByUserId(decoded.id);
 
-      if (user && user.is_active) {
+      if (auth && auth.is_active) {
         req.user = {
-          id: user.id,
-          email: user.email,
-          is_admin: user.is_admin,
+          id: decoded.id,
+          email: decoded.email,
+          role: auth.role,
         };
       }
     } catch (error) {
@@ -116,7 +119,7 @@ export const requireAdmin = (
     return;
   }
 
-  if (!req.user.is_admin) {
+  if (req.user.role !== UserRole.ADMIN) {
     res.sendError('Admin access required', 403);
     return;
   }

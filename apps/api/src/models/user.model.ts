@@ -24,12 +24,6 @@ export default class UserModel extends Model {
   email!: string;
 
   @Column({
-    type: DataType.STRING(255),
-    allowNull: false,
-  })
-  password_hash!: string;
-
-  @Column({
     type: DataType.STRING(100),
     allowNull: true,
   })
@@ -49,24 +43,6 @@ export default class UserModel extends Model {
     },
   })
   subscription_status!: string;
-
-  @Column({
-    type: DataType.DATE,
-    allowNull: true,
-  })
-  last_login?: Date;
-
-  @Column({
-    type: DataType.BOOLEAN,
-    defaultValue: false,
-  })
-  is_admin!: boolean;
-
-  @Column({
-    type: DataType.BOOLEAN,
-    defaultValue: true,
-  })
-  is_active!: boolean;
 
   @CreatedAt
   created_at!: Date;

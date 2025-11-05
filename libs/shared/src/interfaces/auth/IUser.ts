@@ -1,6 +1,6 @@
 /**
  * User interface
- * Represents a user in the system
+ * Represents a user profile in the system (personal data only)
  */
 export interface IUser {
   id?: string;
@@ -8,9 +8,6 @@ export interface IUser {
   first_name?: string;
   last_name?: string;
   subscription_status: string;
-  is_admin?: boolean;
-  is_active?: boolean;
-  last_login?: Date;
   created_at?: Date;
   updated_at?: Date;
 }

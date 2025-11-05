@@ -1,7 +1,7 @@
 import * as bcrypt from 'bcrypt';
 import jwt, { SignOptions } from 'jsonwebtoken';
-import { UserDao } from '../dao';
-import { IRegisterData, ILoginData, IAuthTokens, IUser, IApiResponse } from '@nx-mono-repo-deployment-test/shared';
+import { UserDao, AuthDao } from '../dao';
+import { IRegisterData, ILoginData, IAuthTokens, IUser, IApiResponse, UserRole } from '@nx-mono-repo-deployment-test/shared';
 import { appConfig } from '../config/app.config';
 
 /**
@@ -11,10 +11,12 @@ import { appConfig } from '../config/app.config';
 class AuthService {
   private readonly SALT_ROUNDS = 10;
   private userDao: UserDao;
+  private authDao: AuthDao;
 
   constructor() {
     // Configuration loaded from centralized app.config
     this.userDao = UserDao.getInstance();
+    this.authDao = AuthDao.getInstance();
   }
 
   /**
@@ -35,13 +37,20 @@ class AuthService {
       // Hash password
       const passwordHash = await bcrypt.hash(data.password, this.SALT_ROUNDS);
 
-      // Create user
+      // Create user (personal data only)
       const userModel = await this.userDao.create({
         email: data.email,
-        password: passwordHash,
         first_name: data.first_name,
         last_name: data.last_name,
         subscription_status: 'inactive',
+      });
+
+      // Create auth record
+      await this.authDao.create({
+        user_id: userModel.id,
+        password_hash: passwordHash,
+        role: UserRole.USER,
+        is_active: true,
       });
 
       // Convert model to plain interface object
@@ -51,9 +60,6 @@ class AuthService {
         first_name: userModel.first_name,
         last_name: userModel.last_name,
         subscription_status: userModel.subscription_status,
-        is_admin: userModel.is_admin,
-        is_active: userModel.is_active,
-        last_login: userModel.last_login,
         created_at: userModel.created_at,
         updated_at: userModel.updated_at,
       };
@@ -77,17 +83,17 @@ class AuthService {
    */
   async login(data: ILoginData): Promise<IApiResponse<{ user: IUser; tokens: IAuthTokens }>> {
     try {
-      // Find user
-      const userModel = await this.userDao.findByEmail(data.email);
+      // Find auth record by email
+      const auth = await this.authDao.findByUserEmail(data.email);
 
-      if (!userModel) {
+      if (!auth) {
         return {
           success: false,
           error: 'Invalid email or password',
         };
       }
 
-      if (!userModel.is_active) {
+      if (!auth.is_active) {
         return {
           success: false,
           error: 'Account is inactive',
@@ -95,7 +101,7 @@ class AuthService {
       }
 
       // Verify password
-      const isPasswordValid = await bcrypt.compare(data.password, userModel.password_hash);
+      const isPasswordValid = await bcrypt.compare(data.password, auth.password_hash);
 
       if (!isPasswordValid) {
         return {
@@ -105,8 +111,18 @@ class AuthService {
       }
 
       // Update last login
-      userModel.last_login = new Date();
-      await userModel.save();
+      await this.authDao.updateByUserId(auth.user_id, {
+        last_login: new Date(),
+      });
+
+      // Get user data
+      const userModel = await this.userDao.findById(auth.user_id);
+      if (!userModel) {
+        return {
+          success: false,
+          error: 'User not found',
+        };
+      }
 
       // Generate tokens
       const tokens = this.generateTokens(userModel.id, userModel.email);
@@ -118,9 +134,6 @@ class AuthService {
         first_name: userModel.first_name,
         last_name: userModel.last_name,
         subscription_status: userModel.subscription_status,
-        is_admin: userModel.is_admin,
-        is_active: userModel.is_active,
-        last_login: userModel.last_login,
         created_at: userModel.created_at,
         updated_at: userModel.updated_at,
       };
@@ -176,15 +189,15 @@ class AuthService {
         email: string;
       };
 
-      // Verify user still exists and is active
-      const user = await this.userDao.findById(decoded.id);
+      // Verify user still exists and auth is active
+      const auth = await this.authDao.findByUserId(decoded.id);
 
-      if (!user || !user.is_active) {
+      if (!auth || !auth.is_active) {
         throw new Error('User not found or inactive');
       }
 
       // Generate new tokens
-      return this.generateTokens(user.id, user.email);
+      return this.generateTokens(decoded.id, decoded.email);
     } catch (error: unknown) {
       if (error instanceof jwt.TokenExpiredError) {
         throw new Error('Refresh token expired');
@@ -223,12 +236,12 @@ class AuthService {
    * Verify password
    */
   async verifyPassword(userId: string, password: string): Promise<boolean> {
-    const user = await this.userDao.findById(userId);
-    if (!user) {
+    const auth = await this.authDao.findByUserId(userId);
+    if (!auth) {
       return false;
     }
 
-    return bcrypt.compare(password, user.password_hash);
+    return bcrypt.compare(password, auth.password_hash);
   }
 }
 

@@ -43,11 +43,10 @@ class UserDao {
   }
 
   /**
-   * Create a new user
+   * Create a new user (personal data only, no auth data)
    */
   public async create(data: {
     email: string;
-    password: string;
     first_name?: string;
     last_name?: string;
     subscription_status?: string;
@@ -55,12 +54,9 @@ class UserDao {
     try {
       return await UserModel.create({
         email: data.email,
-        password_hash: data.password,
         first_name: data.first_name,
         last_name: data.last_name,
         subscription_status: data.subscription_status || 'inactive',
-        is_admin: false,
-        is_active: true,
       });
     } catch (error) {
       console.error('Error in UserDao.create:', error);

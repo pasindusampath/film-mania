@@ -7,6 +7,7 @@
 import { sequelize } from '../config';
 import ItemModel from './item.model';
 import UserModel from './user.model';
+import AuthModel from './auth.model';
 import SubscriptionModel from './subscription.model';
 import PaymentModel from './payment.model';
 import MovieModel from './movie.model';
@@ -24,6 +25,7 @@ import ApiUsageModel from './api_usage.model';
  */
 export const initializeAssociations = (): void => {
   // User associations (hasMany/hasOne side - belongsTo is defined via decorators in models)
+  UserModel.hasOne(AuthModel, { foreignKey: 'user_id', as: 'auth' });
   UserModel.hasMany(SubscriptionModel, { foreignKey: 'user_id', as: 'subscriptions' });
   UserModel.hasMany(PaymentModel, { foreignKey: 'user_id', as: 'payments' });
   UserModel.hasMany(UserMovieModel, { foreignKey: 'user_id', as: 'user_movies' });
@@ -43,6 +45,7 @@ export const initializeAssociations = (): void => {
 // Export individual models
 export { default as ItemModel } from './item.model';
 export { default as UserModel } from './user.model';
+export { default as AuthModel } from './auth.model';
 export { default as SubscriptionModel } from './subscription.model';
 export { default as PaymentModel } from './payment.model';
 export { default as MovieModel } from './movie.model';
@@ -60,6 +63,7 @@ export { sequelize };
 export const models = {
   Item: ItemModel,
   User: UserModel,
+  Auth: AuthModel,
   Subscription: SubscriptionModel,
   Payment: PaymentModel,
   Movie: MovieModel,

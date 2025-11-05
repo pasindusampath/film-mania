@@ -70,7 +70,6 @@ class AuthController {
               first_name: result.data.user.first_name,
               last_name: result.data.user.last_name,
               subscription_status: result.data.user.subscription_status,
-              is_admin: result.data.user.is_admin,
             },
             ...result.data.tokens,
           },
@@ -117,7 +116,7 @@ class AuthController {
       }
 
       const userModel = await UserModel.findByPk(userId, {
-        attributes: ['id', 'email', 'first_name', 'last_name', 'subscription_status', 'is_admin', 'created_at'],
+        attributes: ['id', 'email', 'first_name', 'last_name', 'subscription_status', 'created_at'],
       });
 
       if (!userModel) {
@@ -132,7 +131,6 @@ class AuthController {
         first_name: userModel.first_name,
         last_name: userModel.last_name,
         subscription_status: userModel.subscription_status,
-        is_admin: userModel.is_admin,
         created_at: userModel.created_at,
       };
 
