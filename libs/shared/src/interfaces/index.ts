@@ -8,3 +8,4 @@ export * from './IValidatable';
 export * from './IMovie';
 export * from './admin';
 export * from './auth';
+export * from './payment';

@@ -1,6 +1,13 @@
 import Stripe from 'stripe';
-import { PaymentModel } from '../models';
 import { SubscriptionDao, PaymentDao } from '../dao';
+import { 
+  IApiResponse, 
+  ISubscription, 
+  IPayment,
+  SubscriptionStatus, 
+  PlanType, 
+  PaymentStatus 
+} from '@nx-mono-repo-deployment-test/shared';
 import { appConfig } from '../config/app.config';
 import { isProduction } from '../enums';
 
@@ -202,64 +209,78 @@ class StripeService {
   async syncSubscriptionToDatabase(
     stripeSubscription: Stripe.Subscription,
     userId: string
-  ): Promise<SubscriptionModel> {
-    let subscription = await SubscriptionModel.findOne({
-      where: { stripe_subscription_id: stripeSubscription.id },
-    });
+  ): Promise<IApiResponse<ISubscription>> {
+    try {
+      const existingSubscription = await this.subscriptionDao.findByStripeId(stripeSubscription.id);
 
-    const subscriptionData = {
-      user_id: userId,
-      stripe_subscription_id: stripeSubscription.id,
-      status: this.mapStripeStatus(stripeSubscription.status),
-      plan_type: this.getPlanType(stripeSubscription),
-      start_date: new Date(stripeSubscription.created * 1000),
-      end_date: stripeSubscription.cancel_at
-        ? new Date(stripeSubscription.cancel_at * 1000)
-        : stripeSubscription.current_period_end
-        ? new Date(stripeSubscription.current_period_end * 1000)
-        : null,
-      current_period_start: stripeSubscription.current_period_start
-        ? new Date(stripeSubscription.current_period_start * 1000)
-        : null,
-      current_period_end: stripeSubscription.current_period_end
-        ? new Date(stripeSubscription.current_period_end * 1000)
-        : null,
-      cancelled_at: stripeSubscription.canceled_at
-        ? new Date(stripeSubscription.canceled_at * 1000)
-        : null,
-    };
+      const subscriptionData = {
+        user_id: userId,
+        stripe_subscription_id: stripeSubscription.id,
+        status: this.mapStripeStatus(stripeSubscription.status),
+        plan_type: this.getPlanType(stripeSubscription),
+        start_date: new Date(stripeSubscription.created * 1000),
+        end_date: stripeSubscription.cancel_at
+          ? new Date(stripeSubscription.cancel_at * 1000)
+          : stripeSubscription.current_period_end
+          ? new Date(stripeSubscription.current_period_end * 1000)
+          : undefined,
+        current_period_start: stripeSubscription.current_period_start
+          ? new Date(stripeSubscription.current_period_start * 1000)
+          : undefined,
+        current_period_end: stripeSubscription.current_period_end
+          ? new Date(stripeSubscription.current_period_end * 1000)
+          : undefined,
+        funded_by_admin: false,
+      };
 
-    if (subscription) {
-      await subscription.update(subscriptionData);
-    } else {
-      subscription = await SubscriptionModel.create(subscriptionData);
+      let subscription: ISubscription;
+      if (existingSubscription) {
+        subscription = (await this.subscriptionDao.update(existingSubscription.id!, {
+          ...subscriptionData,
+          cancelled_at: stripeSubscription.canceled_at
+            ? new Date(stripeSubscription.canceled_at * 1000)
+            : undefined,
+        }))!;
+      } else {
+        subscription = await this.subscriptionDao.create(subscriptionData);
+      }
+
+      return {
+        success: true,
+        data: subscription,
+        message: 'Subscription synced successfully',
+      };
+    } catch (error) {
+      console.error('Error in StripeService.syncSubscriptionToDatabase:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to sync subscription',
+      };
     }
-
-    return subscription;
   }
 
   /**
-   * Map Stripe subscription status to our status
+   * Map Stripe subscription status to our status enum
    */
-  private mapStripeStatus(status: Stripe.Subscription.Status): string {
-    const statusMap: Record<string, string> = {
-      active: 'active',
-      trialing: 'trialing',
-      past_due: 'past_due',
-      canceled: 'cancelled',
-      unpaid: 'inactive',
-      incomplete: 'inactive',
-      incomplete_expired: 'inactive',
+  private mapStripeStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
+    const statusMap: Record<string, SubscriptionStatus> = {
+      active: SubscriptionStatus.ACTIVE,
+      trialing: SubscriptionStatus.TRIALING,
+      past_due: SubscriptionStatus.PAST_DUE,
+      canceled: SubscriptionStatus.CANCELLED,
+      unpaid: SubscriptionStatus.INACTIVE,
+      incomplete: SubscriptionStatus.INACTIVE,
+      incomplete_expired: SubscriptionStatus.INACTIVE,
     };
-    return statusMap[status] || 'inactive';
+    return statusMap[status] || SubscriptionStatus.INACTIVE;
   }
 
   /**
    * Get plan type from subscription
    */
-  private getPlanType(subscription: Stripe.Subscription): string {
+  private getPlanType(subscription: Stripe.Subscription): PlanType {
     const interval = subscription.items.data[0]?.price?.recurring?.interval;
-    return interval === 'year' ? 'yearly' : 'monthly';
+    return interval === 'year' ? PlanType.YEARLY : PlanType.MONTHLY;
   }
 
   /**
@@ -269,47 +290,73 @@ class StripeService {
     paymentIntent: Stripe.PaymentIntent,
     userId: string,
     subscriptionId?: string
-  ): Promise<PaymentModel> {
-    const existingPayment = await this.paymentDao.findByStripePaymentIntentId(paymentIntent.id);
+  ): Promise<IApiResponse<IPayment>> {
+    try {
+      const existingPayment = await this.paymentDao.findByStripePaymentIntentId(paymentIntent.id);
 
-    const paymentData = {
-      user_id: userId,
-      amount: paymentIntent.amount / 100, // Convert from cents
-      currency: paymentIntent.currency,
-      status: this.mapPaymentStatus(paymentIntent.status),
-      stripe_payment_intent_id: paymentIntent.id,
-      subscription_id: subscriptionId,
-      metadata: {
-        payment_method: paymentIntent.payment_method_types[0] || null,
-      },
-    };
+      const paymentData = {
+        user_id: userId,
+        amount: paymentIntent.amount / 100, // Convert from cents
+        currency: paymentIntent.currency,
+        status: this.mapPaymentStatus(paymentIntent.status),
+        stripe_payment_intent_id: paymentIntent.id,
+        subscription_id: subscriptionId,
+        metadata: {
+          payment_method: paymentIntent.payment_method_types[0] || null,
+        },
+      };
 
-    let payment: PaymentModel;
-    if (existingPayment) {
-      payment = (await this.paymentDao.updateByStripePaymentIntentId(paymentIntent.id, {
-        status: paymentData.status,
-        amount: paymentData.amount,
+      let paymentModel;
+      if (existingPayment) {
+        paymentModel = (await this.paymentDao.updateByStripePaymentIntentId(paymentIntent.id, {
+          status: paymentData.status,
+          amount: paymentData.amount,
+          metadata: paymentData.metadata,
+        }))!;
+      } else {
+        paymentModel = await this.paymentDao.create(paymentData);
+      }
+
+      // Convert model to plain interface object
+      const payment: IPayment = {
+        id: paymentModel.id,
+        user_id: paymentModel.user_id,
+        amount: paymentModel.amount,
+        currency: paymentModel.currency,
+        status: paymentModel.status,
+        stripe_payment_intent_id: paymentModel.stripe_payment_intent_id,
+        subscription_id: paymentModel.subscription_id ?? undefined,
         metadata: paymentData.metadata,
-      }))!;
-    } else {
-      payment = await this.paymentDao.create(paymentData);
-    }
+        created_at: paymentModel.created_at,
+        updated_at: paymentModel.updated_at,
+      };
 
-    return payment;
+      return {
+        success: true,
+        data: payment,
+        message: 'Payment synced successfully',
+      };
+    } catch (error) {
+      console.error('Error in StripeService.syncPaymentToDatabase:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to sync payment',
+      };
+    }
   }
 
   /**
-   * Map Stripe payment status
+   * Map Stripe payment status to our status enum
    */
-  private mapPaymentStatus(status: string): string {
-    const statusMap: Record<string, string> = {
-      succeeded: 'succeeded',
-      pending: 'pending',
-      failed: 'failed',
-      canceled: 'failed',
-      processing: 'pending',
+  private mapPaymentStatus(status: string): PaymentStatus {
+    const statusMap: Record<string, PaymentStatus> = {
+      succeeded: PaymentStatus.SUCCEEDED,
+      pending: PaymentStatus.PENDING,
+      failed: PaymentStatus.FAILED,
+      canceled: PaymentStatus.CANCELED,
+      processing: PaymentStatus.PROCESSING,
     };
-    return statusMap[status] || 'pending';
+    return statusMap[status] || PaymentStatus.PENDING;
   }
 }
 
