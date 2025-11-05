@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  api-staging:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: nx-api-staging
+    expose:
+      - "3012"
+    env_file:
+      - apps/api/.env.staging
+    restart: unless-stopped
+    networks:
+      - npm_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3012/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  web-staging:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://staging-api.pasindusampath.com
+    container_name: nx-web-staging
+    expose:
+      - "3022"
+    env_file:
+      - apps/web/.env.staging
+    restart: unless-stopped
+    networks:
+      - npm_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3022"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  npm_network:
+    external: true
+

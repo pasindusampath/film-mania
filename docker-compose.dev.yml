@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  api-dev:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: nx-api-dev
+    expose:
+      - "3010"
+    env_file:
+      - apps/api/.env.dev
+    restart: unless-stopped
+    networks:
+      - npm_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  web-dev:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://dev-api.pasindusampath.com
+    container_name: nx-web-dev
+    expose:
+      - "3020"
+    env_file:
+      - apps/web/.env.dev
+    restart: unless-stopped
+    networks:
+      - npm_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3020"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  npm_network:
+    external: true
+

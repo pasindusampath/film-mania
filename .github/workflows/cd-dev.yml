@@ -1,0 +1,155 @@
+name: CD - Deploy to DEV
+
+on:
+  push:
+    branches: [develop, dev]
+  workflow_dispatch:
+
+env:
+  YARN_ENABLE_IMMUTABLE_INSTALLS: false
+  ENVIRONMENT: dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Docker Hub (Optional)
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+        continue-on-error: true
+      
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          tags: |
+            nx-api-dev:latest
+            nx-api-dev:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          tags: |
+            nx-web-dev:latest
+            nx-web-dev:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://dev-api.pasindusampath.com
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Deploy to VPS (DEV)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            
+            # Check if directory exists AND is a git repository
+            if [ ! -d "/opt/nx-mono-repo-dev/.git" ]; then
+              echo "Initializing /opt/nx-mono-repo-dev..."
+              sudo rm -rf /opt/nx-mono-repo-dev
+              sudo mkdir -p /opt/nx-mono-repo-dev
+              sudo chown -R $USER:$USER /opt/nx-mono-repo-dev
+              cd /opt/nx-mono-repo-dev
+              git clone ${{ github.server_url }}/${{ github.repository }} .
+              git checkout develop
+            else
+              # Navigate to deployment directory
+              cd /opt/nx-mono-repo-dev
+              
+              # Pull latest changes
+              echo "Pulling latest changes..."
+              git fetch origin
+              git checkout develop
+              git pull origin develop
+            fi
+            
+            # Create environment-specific .env files
+            echo "Creating DEV environment files..."
+            
+            # API env file
+            cat > apps/api/.env.dev << 'EOF'
+            NODE_ENV=development
+            PORT=3010
+            DB_HOST=172.17.0.1
+            DB_PORT=5432
+            DB_NAME=${{ secrets.DEV_DB_NAME }}
+            DB_USER=${{ secrets.DEV_DB_USER }}
+            DB_PASSWORD=${{ secrets.DEV_DB_PASSWORD }}
+            CORS_ORIGIN=https://dev-web.pasindusampath.com
+            EOF
+            
+            # Web env file
+            cat > apps/web/.env.dev << 'EOF'
+            NODE_ENV=development
+            PORT=3020
+            NEXT_PUBLIC_API_URL=https://dev-api.pasindusampath.com
+            EOF
+            
+            # Create network if it doesn't exist
+            if ! docker network ls | grep -q npm_network; then
+              echo "Creating npm_network..."
+              docker network create npm_network
+            fi
+            
+            # Stop and remove DEV containers (including orphans)
+            echo "Stopping DEV containers..."
+            docker-compose -f docker-compose.dev.yml down --remove-orphans || true
+            
+            # Force remove any containers with conflicting names
+            docker rm -f nx-api-dev nx-web-dev 2>/dev/null || true
+            
+            # Build images
+            echo "Building DEV images..."
+            docker-compose -f docker-compose.dev.yml build --no-cache
+            
+            # Start containers
+            echo "Starting DEV containers..."
+            docker-compose -f docker-compose.dev.yml up -d
+            
+            # Wait for containers to start
+            sleep 10
+            
+            # Check container status
+            echo "Checking container status..."
+            docker-compose -f docker-compose.dev.yml ps
+            
+            # Clean up
+            echo "Cleaning up unused Docker resources..."
+            docker system prune -f
+      
+      - name: Health Check
+        run: |
+          sleep 30
+          echo "Checking DEV health endpoint..."
+          curl -f https://dev-api.pasindusampath.com/health || curl -f http://${{ secrets.VPS_HOST }}:3010/health || exit 1
+        continue-on-error: true
+      
+      - name: Notify deployment status
+        if: always()
+        run: |
+          echo "🚀 DEV Deployment completed with status: ${{ job.status }}"
+          echo "📍 API URL: https://dev-api.pasindusampath.com"
+          echo "📍 Web URL: https://dev-web.pasindusampath.com"
+

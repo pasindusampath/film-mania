@@ -1,0 +1,37 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2020",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@nx-mono-repo-deployment-test/shared": ["dist/libs/shared/libs/shared/src/index.d.ts"]
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "tmp",
+    "dist",
+    ".next",
+    ".cursor/**/*",
+    ".cursorrules",
+    "**/.cursorrules",
+    "**/*.md",
+    "**/*.plan.md",
+    "docs/**/*"
+  ]
+}
+

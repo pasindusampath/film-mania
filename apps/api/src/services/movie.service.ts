@@ -1,0 +1,234 @@
+import axios, { AxiosInstance } from 'axios';
+import { MovieModel, MovieCategoryModel, ApiUsageModel, ApiCreditModel } from '../models';
+import {
+  ITMDBMovie,
+  ITMDBMovieListResponse,
+  ITMDBMovieDetails,
+  ITMDBPaginatedResponse,
+  IStreamingLink,
+  MovieCategory,
+} from '@nx-mono-repo-deployment-test/shared';
+
+/**
+ * Movie Service
+ * Handles movie data from TMDB and streaming APIs
+ */
+class MovieService {
+  private tmdbClient: AxiosInstance;
+  private tmdbApiKey: string;
+  private tmdbBaseUrl = 'https://api.themoviedb.org/3';
+
+  constructor() {
+    this.tmdbApiKey = process.env.TMDB_API_KEY || '';
+    this.tmdbClient = axios.create({
+      baseURL: this.tmdbBaseUrl,
+      params: {
+        api_key: this.tmdbApiKey,
+      },
+    });
+  }
+
+  /**
+   * Search movies
+   */
+  async searchMovies(query: string, page: number = 1): Promise<ITMDBMovieListResponse> {
+    try {
+      await this.checkApiCredits('tmdb');
+      const response = await this.tmdbClient.get<ITMDBMovieListResponse>('/search/movie', {
+        params: { query, page },
+      });
+      await this.trackApiUsage('tmdb', 'search/movie', query);
+      return response.data;
+    } catch (error: unknown) {
+      console.error('TMDB search error:', error);
+      throw new Error('Failed to search movies');
+    }
+  }
+
+  /**
+   * Get popular movies
+   */
+  async getPopularMovies(page: number = 1, language?: string): Promise<ITMDBMovieListResponse> {
+    try {
+      await this.checkApiCredits('tmdb');
+      const response = await this.tmdbClient.get<ITMDBMovieListResponse>('/movie/popular', {
+        params: { page, language },
+      });
+      await this.trackApiUsage('tmdb', 'movie/popular');
+      return response.data;
+    } catch (error: unknown) {
+      console.error('TMDB popular movies error:', error);
+      throw new Error('Failed to get popular movies');
+    }
+  }
+
+  /**
+   * Get trending movies
+   */
+  async getTrendingMovies(timeWindow: 'day' | 'week' = 'day'): Promise<ITMDBPaginatedResponse<ITMDBMovie>> {
+    try {
+      await this.checkApiCredits('tmdb');
+      const response = await this.tmdbClient.get<ITMDBPaginatedResponse<ITMDBMovie>>(`/trending/movie/${timeWindow}`);
+      await this.trackApiUsage('tmdb', `trending/movie/${timeWindow}`);
+      return response.data;
+    } catch (error: unknown) {
+      console.error('TMDB trending movies error:', error);
+      throw new Error('Failed to get trending movies');
+    }
+  }
+
+  /**
+   * Get movie details by TMDB ID
+   */
+  async getMovieDetails(tmdbId: number): Promise<ITMDBMovieDetails> {
+    try {
+      await this.checkApiCredits('tmdb');
+      const response = await this.tmdbClient.get<ITMDBMovieDetails>(`/movie/${tmdbId}`);
+      await this.trackApiUsage('tmdb', `movie/${tmdbId}`);
+      return response.data;
+    } catch (error: unknown) {
+      console.error('TMDB movie details error:', error);
+      throw new Error('Failed to get movie details');
+    }
+  }
+
+  /**
+   * Get movies by language/region
+   */
+  async getMoviesByLanguage(
+    language: string,
+    page: number = 1
+  ): Promise<ITMDBMovieListResponse> {
+    try {
+      await this.checkApiCredits('tmdb');
+      const response = await this.tmdbClient.get<ITMDBMovieListResponse>('/discover/movie', {
+        params: {
+          with_original_language: language,
+          page,
+        },
+      });
+      await this.trackApiUsage('tmdb', 'discover/movie', language);
+      return response.data;
+    } catch (error: unknown) {
+      console.error('TMDB movies by language error:', error);
+      throw new Error('Failed to get movies by language');
+    }
+  }
+
+  /**
+   * Get streaming links (placeholder - integrate with VidAPI/StreamAPI)
+   */
+  async getStreamingLinks(_tmdbId: number): Promise<IStreamingLink[]> {
+    try {
+      // TODO: Integrate with VidAPI/StreamAPI
+      // For now, return empty array
+      return [];
+    } catch (error: unknown) {
+      console.error('Streaming links error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Save movie to database
+   */
+  async saveMovieToDatabase(tmdbData: ITMDBMovie | ITMDBMovieDetails, categories: MovieCategory[]): Promise<MovieModel> {
+    let movie = await MovieModel.findOne({
+      where: { tmdb_id: tmdbData.id },
+    });
+
+    const movieData = {
+      tmdb_id: tmdbData.id,
+      title: tmdbData.title,
+      overview: tmdbData.overview,
+      poster_path: tmdbData.poster_path,
+      backdrop_path: tmdbData.backdrop_path,
+      release_date: tmdbData.release_date,
+      language: tmdbData.original_language,
+      original_language: tmdbData.original_language,
+      runtime: tmdbData.runtime,
+      vote_average: tmdbData.vote_average,
+      vote_count: tmdbData.vote_count,
+      popularity: tmdbData.popularity,
+      content_type: 'movie', // Default to movie
+      streaming_links: [],
+    };
+
+    if (movie) {
+      await movie.update(movieData);
+    } else {
+      movie = await MovieModel.create(movieData);
+    }
+
+    // Save categories
+    if (categories.length > 0) {
+      await MovieCategoryModel.destroy({
+        where: { movie_id: movie.id },
+      });
+
+      for (const category of categories) {
+        await MovieCategoryModel.create({
+          movie_id: movie.id,
+          category,
+        });
+      }
+    }
+
+    return movie;
+  }
+
+  /**
+   * Check API credits before making request
+   */
+  private async checkApiCredits(provider: string): Promise<void> {
+    const credit = await ApiCreditModel.findOne({
+      where: { api_provider: provider },
+      order: [['purchase_date', 'DESC']],
+    });
+
+    if (!credit) {
+      throw new Error(`No API credits available for ${provider}`);
+    }
+
+    if (credit.credits_used >= credit.credits_purchased) {
+      throw new Error(`API credits exhausted for ${provider}`);
+    }
+
+    if (credit.expiry_date && new Date(credit.expiry_date) < new Date()) {
+      throw new Error(`API credits expired for ${provider}`);
+    }
+  }
+
+  /**
+   * Track API usage
+   */
+  private async trackApiUsage(
+    provider: string,
+    endpoint: string,
+    requestType?: string
+  ): Promise<void> {
+    try {
+      await ApiUsageModel.create({
+        api_provider: provider,
+        endpoint,
+        credits_used: 1,
+        request_type: requestType,
+      });
+
+      // Update credit usage
+      const credit = await ApiCreditModel.findOne({
+        where: { api_provider: provider },
+        order: [['purchase_date', 'DESC']],
+      });
+
+      if (credit) {
+        await credit.increment('credits_used');
+      }
+    } catch (error) {
+      console.error('Error tracking API usage:', error);
+    }
+  }
+}
+
+export default new MovieService();
+

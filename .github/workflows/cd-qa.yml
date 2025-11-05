@@ -1,0 +1,155 @@
+name: CD - Deploy to QA
+
+on:
+  push:
+    branches: [qa]
+  workflow_dispatch:
+
+env:
+  YARN_ENABLE_IMMUTABLE_INSTALLS: false
+  ENVIRONMENT: qa
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: qa
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Docker Hub (Optional)
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+        continue-on-error: true
+      
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          tags: |
+            nx-api-qa:latest
+            nx-api-qa:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          tags: |
+            nx-web-qa:latest
+            nx-web-qa:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://qa-api.pasindusampath.com
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Deploy to VPS (QA)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            
+            # Check if directory exists AND is a git repository
+            if [ ! -d "/opt/nx-mono-repo-qa/.git" ]; then
+              echo "Initializing /opt/nx-mono-repo-qa..."
+              sudo rm -rf /opt/nx-mono-repo-qa
+              sudo mkdir -p /opt/nx-mono-repo-qa
+              sudo chown -R $USER:$USER /opt/nx-mono-repo-qa
+              cd /opt/nx-mono-repo-qa
+              git clone ${{ github.server_url }}/${{ github.repository }} .
+              git checkout qa
+            else
+              # Navigate to deployment directory
+              cd /opt/nx-mono-repo-qa
+              
+              # Pull latest changes
+              echo "Pulling latest changes..."
+              git fetch origin
+              git checkout qa
+              git pull origin qa
+            fi
+            
+            # Create environment-specific .env files
+            echo "Creating QA environment files..."
+            
+            # API env file
+            cat > apps/api/.env.qa << 'EOF'
+            NODE_ENV=qa
+            PORT=3011
+            DB_HOST=172.17.0.1
+            DB_PORT=5432
+            DB_NAME=${{ secrets.QA_DB_NAME }}
+            DB_USER=${{ secrets.QA_DB_USER }}
+            DB_PASSWORD=${{ secrets.QA_DB_PASSWORD }}
+            CORS_ORIGIN=https://qa-web.pasindusampath.com
+            EOF
+            
+            # Web env file
+            cat > apps/web/.env.qa << 'EOF'
+            NODE_ENV=qa
+            PORT=3021
+            NEXT_PUBLIC_API_URL=https://qa-api.pasindusampath.com
+            EOF
+            
+            # Create network if it doesn't exist
+            if ! docker network ls | grep -q npm_network; then
+              echo "Creating npm_network..."
+              docker network create npm_network
+            fi
+            
+            # Stop and remove QA containers (including orphans)
+            echo "Stopping QA containers..."
+            docker-compose -f docker-compose.qa.yml down --remove-orphans || true
+            
+            # Force remove any containers with conflicting names
+            docker rm -f nx-api-qa nx-web-qa 2>/dev/null || true
+            
+            # Build images
+            echo "Building QA images..."
+            docker-compose -f docker-compose.qa.yml build --no-cache
+            
+            # Start containers
+            echo "Starting QA containers..."
+            docker-compose -f docker-compose.qa.yml up -d
+            
+            # Wait for containers to start
+            sleep 10
+            
+            # Check container status
+            echo "Checking container status..."
+            docker-compose -f docker-compose.qa.yml ps
+            
+            # Clean up
+            echo "Cleaning up unused Docker resources..."
+            docker system prune -f
+      
+      - name: Health Check
+        run: |
+          sleep 30
+          echo "Checking QA health endpoint..."
+          curl -f https://qa-api.pasindusampath.com/health || curl -f http://${{ secrets.VPS_HOST }}:3011/health || exit 1
+        continue-on-error: true
+      
+      - name: Notify deployment status
+        if: always()
+        run: |
+          echo "🚀 QA Deployment completed with status: ${{ job.status }}"
+          echo "📍 API URL: https://qa-api.pasindusampath.com"
+          echo "📍 Web URL: https://qa-web.pasindusampath.com"
+

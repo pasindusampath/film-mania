@@ -1,0 +1,38 @@
+{
+  "name": "@nx-mono-repo-deployment-test/source",
+  "version": "1.0.0",
+  "license": "MIT",
+  "packageManager": "yarn@4.0.2",
+  "scripts": {
+    "api:dev": "yarn workspace api dev",
+    "api:build": "yarn workspace api build",
+    "api:start": "yarn workspace api start",
+    "web:dev": "yarn workspace web dev",
+    "web:build": "yarn workspace web build",
+    "web:start": "yarn workspace web start",
+    "shared:build": "yarn workspace @nx-mono-repo-deployment-test/shared build",
+    "build:all": "yarn shared:build && yarn api:build && yarn web:build",
+    "install:all": "yarn install",
+    "type-check": "yarn workspace api lint && yarn workspace web type-check",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "deploy": "bash scripts/deploy.sh",
+    "status": "bash scripts/status.sh",
+    "logs": "bash scripts/logs.sh"
+  },
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "libs/shared"
+  ],
+  "devDependencies": {
+    "@nx/js": "21.6.5",
+    "@nx/workspace": "21.6.5",
+    "nx": "21.6.5",
+    "prettier": "^3.1.0",
+    "typescript": "^5.3.3"
+  }
+}
